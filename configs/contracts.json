@@ -1,0 +1,56 @@
+{
+  "1": {
+    "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    "baseToken": "",
+    "liquidityBacking": "",
+    "marketing": "",
+    "platform": "",
+    "development": "",
+    "nativeWrapper": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+  },
+  "5": {
+    "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    "baseToken": "0x7416F4870F1Cd9e60707D850606c969D9dCf7DAe",
+    "liquidityBacking": "",
+    "marketing": "",
+    "platform": "",
+    "development": "",
+    "nativeWrapper": "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"
+  },
+  "56": {
+    "router": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+    "baseToken": "",
+    "liquidityBacking": "",
+    "marketing": "",
+    "platform": "",
+    "development": "",
+    "nativeWrapper": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+  },
+  "97": {
+    "router": "0xD99D1c33F9fC3444f8101754aBC46c52416550D1",
+    "baseToken": "0xb5c4Dc15DAb293E0Dc796a0Ba5DAC85207d2339C",
+    "liquidityBacking": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "marketing": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "platform": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "development": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "nativeWrapper": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd"
+  },
+  "43113": {
+    "router": "0xd7f655E3376cE2D7A2b08fF01Eb3B1023191A901",
+    "baseToken": "0x6ef48fAE861010F369883d3614bCa91E2F720772",
+    "liquidityBacking": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "marketing": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "platform": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "development": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "nativeWrapper": "0xd00ae08403B9bbb9124bB305C09058E32C39A48c"
+  },
+  "43114": {
+    "router": "0x60aE616a2155Ee3d9A68541Ba4544862310933d4",
+    "baseToken": "0x51e48670098173025C477D9AA3f0efF7BF9f7812",
+    "liquidityBacking": "0x62320b483C422112DE64f3F621A3f57B993029C9",
+    "marketing": "0x16eF18E42A7d72E52E9B213D7eABA269B90A4643",
+    "platform": "0xcA01A9d36F47561F03226B6b697B14B9274b1B10",
+    "development": "0xdF090f6675034Fde637031c6590FD1bBeBc4fa45",
+    "nativeWrapper": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
+  }
+}

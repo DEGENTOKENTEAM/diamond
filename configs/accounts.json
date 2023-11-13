@@ -1,0 +1,17 @@
+{
+  "1": { "operator": "", "lpTokenReceiver": "0x9cC48448ba8276640c8a77eeAE29063B697474d1" },
+  "5": {
+    "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
+  },
+  "56": { "operator": "", "lpTokenReceiver": "" },
+  "97": {
+    "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
+  },
+  "43113": {
+    "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
+    "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
+  },
+  "43114": { "operator": "", "lpTokenReceiver": "" }
+}

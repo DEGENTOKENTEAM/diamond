@@ -1,0 +1,54 @@
+{
+  "Diamond": {
+    "Facets": {
+      "0x7F5ccb9aAdB8A11C871Ea954B788961103acff30": {
+        "Name": "DiamondCutFacet",
+        "Version": "1.0.0"
+      },
+      "0x0A509a6a51a5572DEe9130626f257D815AbB62e9": {
+        "Name": "Diamond",
+        "Version": "1.0.0"
+      },
+      "0x135cDd006Abc15518f24ab9185499f4240611697": {
+        "Name": "DiamondLoupeFacet",
+        "Version": "1.0.0"
+      },
+      "0x2090FEceC1197E10c600b02d45FC3B4988d58978": {
+        "Name": "AccessControlEnumerableFacet",
+        "Version": "1.0.0"
+      },
+      "0x6E8b0F9d78eB54250D84E722Dbf279929BFB311b": {
+        "Name": "DiamondInit",
+        "Version": "1.0.0"
+      },
+      "0x1ee6786d6bAA6610E4FE8DB35692443f20E9F8DC": {
+        "Name": "RelayerCeler",
+        "Version": "1.0.0"
+      },
+      "0xc39FeF294215749cf4e0c0Ac53c120dA33cEa113": {
+        "Name": "FeeStoreFacet",
+        "Version": "1.0.0"
+      },
+      "0xEA74ad207B26616fcca8e69E06339a2E636a8f4B": {
+        "Name": "CelerFeeHubFacet",
+        "Version": "1.0.0"
+      },
+      "0x323f32C8A552911AD64e8B18a2Ab6ee47793D110": {
+        "Name": "ERC20Facet",
+        "Version": "1.0.0"
+      },
+      "0x4880C82DC8004360B5cA9654e27Cc6D9C2DfE998": {
+        "Name": "DegenATM",
+        "Version": "1.0.0"
+      },
+      "0x4F857338192F615350223F6C441DfF0ab68768dd": {
+        "Name": "LaunchControl",
+        "Version": "1.0.0"
+      },
+      "0x40b59531d29f7E0aAc602C0237903EDf210E63A5": {
+        "Name": "DegenATM",
+        "Version": "1.0.0"
+      }
+    }
+  }
+}

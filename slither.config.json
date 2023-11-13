@@ -1,0 +1,7 @@
+{
+  "exclude_informational": true,
+  "exclude_low": true,
+  "disable_color": false,
+  "filter_paths": "openzeppelin|solidstate|celer|LibDiamond.sol|DiamondLoupeFacet.sol|DiamondCutFacet.sol",
+  "solc_remaps": "@openzeppelin/=/share/node_modules/@openzeppelin/ celer/=/share/providers/celer-contracts/ @solidstate/=/share/node_modules/@solidstate/"
+}

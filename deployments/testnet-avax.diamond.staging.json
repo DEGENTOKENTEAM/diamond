@@ -1,0 +1,42 @@
+{
+  "Diamond": {
+    "Facets": {
+      "0xAFa3b15733ebcbAb29781FF403D9120D411FCaD9": {
+        "Name": "DiamondCutFacet",
+        "Version": "1.0.0"
+      },
+      "0x3900A626Dd925bdfE6Ee3292091517Fd07176647": {
+        "Name": "Diamond",
+        "Version": "1.0.0"
+      },
+      "0xf1490Ef1fab1ED41Bf2baeb6784cf6274Acf9a82": {
+        "Name": "DiamondLoupeFacet",
+        "Version": "1.0.0"
+      },
+      "0x88CC6a9688aE6C0cd540CFd1A257fCb62697893c": {
+        "Name": "AccessControlEnumerableFacet",
+        "Version": "1.0.0"
+      },
+      "0x3FB5f9B2b63D9bD76591c8d672CE2d47184E109f": {
+        "Name": "DiamondInit",
+        "Version": "1.0.0"
+      },
+      "0x76360D33937080C2D89CBd3cBd7e512893fFDcd9": {
+        "Name": "RelayerCeler",
+        "Version": "1.0.0"
+      },
+      "0xA0b6d40c8E268d8310Df03aE30c08D9ca638471C": {
+        "Name": "CelerFeeHubFacet",
+        "Version": "1.0.0"
+      },
+      "0x013f43E1c8C4D200551c22B8991525E6c6016340": {
+        "Name": "FeeManagerFacet",
+        "Version": "1.0.0"
+      },
+      "0xd4B8aEFAF086F35C8D8444f26848735399A3cf8B": {
+        "Name": "FeeDistributorFacet",
+        "Version": "1.0.0"
+      }
+    }
+  }
+}

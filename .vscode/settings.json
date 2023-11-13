@@ -1,0 +1,3 @@
+{
+  "solidity-metrics.file.exclusions.glob": "{**/node_modules,**/mock*,**/__mocks__*,**/test*,**/migrations,**/Migrations.sol,**/Diamond.sol,**/LibDiamond.sol,**/LibAccessControlEnumerable.sol,**/AccessControlEnumerableFacet.sol,**/DiamondCutFacet.sol,**/DiamondLoupeFacet.sol,**/IERC165.sol,**/IERC173.sol}"
+}

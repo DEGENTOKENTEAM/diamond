@@ -1,0 +1,309 @@
+{
+  "DiamondCutFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xAFa3b15733ebcbAb29781FF403D9120D411FCaD9",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:40:25",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          },
+          {
+            "ADDRESS": "0xAFa3b15733ebcbAb29781FF403D9120D411FCaD9",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:40:25",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x7F5ccb9aAdB8A11C871Ea954B788961103acff30",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:55:24",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "Diamond": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x3900A626Dd925bdfE6Ee3292091517Fd07176647",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:40:31",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000002fcb9d07ed31874f5fe6da6de315b3b28dd0ad10000000000000000000000000afa3b15733ebcbab29781ff403d9120d411fcad9",
+            "VERIFIED": "false"
+          },
+          {
+            "ADDRESS": "0x3900A626Dd925bdfE6Ee3292091517Fd07176647",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:40:31",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000002fcb9d07ed31874f5fe6da6de315b3b28dd0ad10000000000000000000000000afa3b15733ebcbab29781ff403d9120d411fcad9",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x0A509a6a51a5572DEe9130626f257D815AbB62e9",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:55:36",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000002fcb9d07ed31874f5fe6da6de315b3b28dd0ad100000000000000000000000007f5ccb9aadb8a11c871ea954b788961103acff30",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "DiamondLoupeFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xf1490Ef1fab1ED41Bf2baeb6784cf6274Acf9a82",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:40:39",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x135cDd006Abc15518f24ab9185499f4240611697",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:55:48",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "AccessControlEnumerableFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x88CC6a9688aE6C0cd540CFd1A257fCb62697893c",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:50:59",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x2090FEceC1197E10c600b02d45FC3B4988d58978",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:56:00",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "DiamondInit": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x3FB5f9B2b63D9bD76591c8d672CE2d47184E109f",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:51:11",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x6E8b0F9d78eB54250D84E722Dbf279929BFB311b",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:56:24",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "RelayerCeler": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x76360D33937080C2D89CBd3cBd7e512893fFDcd9",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:51:23",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000003900a626dd925bdfe6ee3292091517fd07176647000000000000000000000000000000000000000000000000000000000000000000000000000000000000000095d21f80076e29dbd7fc065d8da0ed0a5f43be2b000000000000000000000000e9533976c590200e32d95c53f06ae12d292cfc47000000000000000000000000000000000000000000000000000000000000a8690000000000000000000000000000000000000000000000000000000000000001",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x1ee6786d6bAA6610E4FE8DB35692443f20E9F8DC",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:57:36",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000000a509a6a51a5572dee9130626f257d815abb62e900000000000000000000000076360d33937080c2d89cbd3cbd7e512893ffdcd900000000000000000000000095d21f80076e29dbd7fc065d8da0ed0a5f43be2b000000000000000000000000f25170f86e4291a99a9a560032fe9948b8bcfbb200000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000000",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "CelerFeeHubFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xA0b6d40c8E268d8310Df03aE30c08D9ca638471C",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:51:31",
+            "CONSTRUCTOR_ARGS": "0x00000000000000000000000076360d33937080c2d89cbd3cbd7e512893ffdcd9",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    },
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xEA74ad207B26616fcca8e69E06339a2E636a8f4B",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:58:00",
+            "CONSTRUCTOR_ARGS": "0x0000000000000000000000001ee6786d6baa6610e4fe8db35692443f20e9f8dc",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "FeeManagerFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x013f43E1c8C4D200551c22B8991525E6c6016340",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:51:36",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "FeeDistributorFacet": {
+    "testnet-avax": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xd4B8aEFAF086F35C8D8444f26848735399A3cf8B",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:51:44",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "FeeStoreFacet": {
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xc39FeF294215749cf4e0c0Ac53c120dA33cEa113",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:57:48",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "ERC20Facet": {
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x323f32C8A552911AD64e8B18a2Ab6ee47793D110",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 17:58:36",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "DegenATM": {
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x4880C82DC8004360B5cA9654e27Cc6D9C2DfE998",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 19:09:24",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          },
+          {
+            "ADDRESS": "0x40b59531d29f7E0aAc602C0237903EDf210E63A5",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-11-12 15:01:24",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  },
+  "LaunchControl": {
+    "testnet-eth": {
+      "staging": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0x4F857338192F615350223F6C441DfF0ab68768dd",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2023-10-31 19:10:48",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
+  }
+}
