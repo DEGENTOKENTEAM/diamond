@@ -212,9 +212,9 @@ contract DegenATM is Ownable, ReentrancyGuard {
     /// @dev `estimatedTotalLockedTokensRewards` estimated amount of total rewards paid for current locked tokens  
     /// @dev `estimatedTotalLockedTokensPayouts` estimated amount of tokens incl. rewards which are getting paid out  
     /// @dev `estimatedTotalTokensPayout` estimated amount of ALL possible paid out tokens (claimed + locked + rewards)  
-    /// @dev `lockPeriodInSeconds` lock period in seconds which result in 365d or 1y  
     /// @dev `lockPeriodStarts` the timestamp when the lock period starts  
     /// @dev `lockPeriodEnds` the timestamp when the lock period ends  
+    /// @dev `lockPeriodInSeconds` lock period in seconds which result in 365d or 1y  
     /// @dev `rewardPenaltyBps` % loyalty penalty in basis points  
     /// @dev `totalRewardBps` % reward in basis points  
     function getStats() external view returns (Stats memory _stats) {
