@@ -190,9 +190,9 @@ contract DegenATM is Ownable, ReentrancyGuard {
         uint256 estimatedTotalLockedTokensRewards;
         uint256 estimatedTotalLockedTokensPayouts;
         uint256 estimatedTotalTokensPayout;
-        uint256 lockPeriodInSeconds;
         uint256 lockPeriodStarts;
         uint256 lockPeriodEnds;
+        uint256 lockPeriodInSeconds;
         uint256 rewardPenaltyBps;
         uint256 totalRewardBps;
     }
