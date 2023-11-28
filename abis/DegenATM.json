@@ -500,17 +500,17 @@
           },
           {
             "internalType": "uint256",
-            "name": "lockPeriodInSeconds",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
             "name": "lockPeriodStarts",
             "type": "uint256"
           },
           {
             "internalType": "uint256",
             "name": "lockPeriodEnds",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockPeriodInSeconds",
             "type": "uint256"
           },
           {

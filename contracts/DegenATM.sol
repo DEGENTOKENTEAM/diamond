@@ -92,14 +92,14 @@ contract DegenATM is Ownable, ReentrancyGuard {
     }
 
     /// Leaves the lock of the tokens
-    /// @notice The sender will leave the locked state if he has joined it.  
-    /// @notice After leaving, he will auto claim the tokens and not be able to join the lock anymore.  
-    /// @notice The sender can leave at any time. Before the lock period, he has not gained any rewards  
-    /// @notice and claims only his initial allocated amount of tokens. If the lock period has started  
-    /// @notice and not ended yet, the sender will receive his initial allocated tokens with 30% of the  
-    /// @notice rewards, because of the desined penalty when leaving the locked state before end of period.  
-    /// @notice After the lock period has ended, the sender will receive the allocated amount of tokens  
-    /// @notice and the full amount of rewards.  
+    /// @notice The sender will leave the locked state if he has joined it.
+    /// @notice After leaving, he will auto claim the tokens and not be able to join the lock anymore.
+    /// @notice The sender can leave at any time. Before the lock period, he has not gained any rewards
+    /// @notice and claims only his initial allocated amount of tokens. If the lock period has started
+    /// @notice and not ended yet, the sender will receive his initial allocated tokens with 30% of the
+    /// @notice rewards, because of the desined penalty when leaving the locked state before end of period.
+    /// @notice After the lock period has ended, the sender will receive the allocated amount of tokens
+    /// @notice and the full amount of rewards.
     function lockLeave() external nonReentrant {
         if (!locked[_msgSender()]) revert("not locked");
         uint256 _penalty = 0;
@@ -142,22 +142,22 @@ contract DegenATM is Ownable, ReentrancyGuard {
     /// Returns atm stats for a given qualifier
     /// @param _qualifier address of the account
     /// @return _stats statistics for a qualifier
-    /// @dev `isWhitelisted` flag if the qualifier is whitelisted or not  
-    /// @dev `hasClaimed` flag if the qualifier has claimed his tokens  
-    /// @dev `hasLocked` flag if the qualifier has locked his tokens  
-    /// @dev `tokenBalance` qualifiers balance of the token  
-    /// @dev `lockedAmount` amount of locked tokens  
-    /// @dev `claimedAmount` amount of claimed tokens  
-    /// @dev `totalDeposited` amount of deposited native  
-    /// @dev `currentRewardAmount` returns the current reward amount (only if lock period has started, else 0)  
-    /// @dev `currentPenaltyAmount` returns the current penalty amount if the qualifier leaves the lock (only if lock period has started, else 0)  
-    /// @dev `currentRewardAmountNet` returns the current rewart amount excl. penalty amount (only if lock period has started, else 0)  
-    /// @dev `estimatedTotalRewardAmount` potential amount of rewards qualifier receives after whole lock period  
-    /// @dev `estimatedTotalClaimAmount` potential total amount (accumulated + rewards) which the qualifier will receive after whole lock period  
+    /// @dev `isWhitelisted` flag if the qualifier is whitelisted or not
+    /// @dev `hasClaimed` flag if the qualifier has claimed his tokens
+    /// @dev `hasLocked` flag if the qualifier has locked his tokens
+    /// @dev `tokenBalance` qualifiers balance of the token
+    /// @dev `lockedAmount` amount of locked tokens
+    /// @dev `claimedAmount` amount of claimed tokens
+    /// @dev `totalDeposited` amount of deposited native
+    /// @dev `currentRewardAmount` returns the current reward amount (only if lock period has started, else 0)
+    /// @dev `currentPenaltyAmount` returns the current penalty amount if the qualifier leaves the lock (only if lock period has started, else 0)
+    /// @dev `currentRewardAmountNet` returns the current rewart amount excl. penalty amount (only if lock period has started, else 0)
+    /// @dev `estimatedTotalRewardAmount` potential amount of rewards qualifier receives after whole lock period
+    /// @dev `estimatedTotalClaimAmount` potential total amount (accumulated + rewards) which the qualifier will receive after whole lock period
     function getStatsForQualifier(address _qualifier) external view returns (StatsForQualifier memory _stats) {
-        uint256 _amount = locked[_qualifier] ? lockedAmount[_msgSender()] : _calcClaimAmount(_qualifier);
+        uint256 _amount = locked[_qualifier] ? lockedAmount[_qualifier] : _calcClaimAmount(_qualifier);
         (uint256 _currentRewardAmount, uint256 _currentPenaltyAmount, uint256 _currentRewardAmountNet) = _calcRewards(
-            lockedAmount[_msgSender()],
+            lockedAmount[_qualifier],
             startTimestamp > 0 ? startTimestamp : block.timestamp
         );
         _stats = StatsForQualifier(
@@ -199,24 +199,24 @@ contract DegenATM is Ownable, ReentrancyGuard {
 
     /// Returns general atm stats
     /// @return _stats statistics for a qualifier
-    /// @dev `collecting` flag if the native token collection has started or not  
-    /// @dev `claiming` flag if the claiming has started or not (will enable claiming and locking functionality)  
-    /// @dev `lockPeriodActive` flag is the lock period has started  
-    /// @dev `token` address of the token  
-    /// @dev `tokenBalance` contract balance of the token  
-    /// @dev `allocationLimit` defined alloctaion limit  
-    /// @dev `tokensPerOneNative` defined tokens per one native  
-    /// @dev `totalDeposits` total amount of native deposits  
-    /// @dev `totalLockedTokens` total amount of locked tokens  
-    /// @dev `totalClaimedTokens` total amount of claimed tokens  
-    /// @dev `estimatedTotalLockedTokensRewards` estimated amount of total rewards paid for current locked tokens  
-    /// @dev `estimatedTotalLockedTokensPayouts` estimated amount of tokens incl. rewards which are getting paid out  
-    /// @dev `estimatedTotalTokensPayout` estimated amount of ALL possible paid out tokens (claimed + locked + rewards)  
-    /// @dev `lockPeriodStarts` the timestamp when the lock period starts  
-    /// @dev `lockPeriodEnds` the timestamp when the lock period ends  
-    /// @dev `lockPeriodInSeconds` lock period in seconds which result in 365d or 1y  
-    /// @dev `rewardPenaltyBps` % loyalty penalty in basis points  
-    /// @dev `totalRewardBps` % reward in basis points  
+    /// @dev `collecting` flag if the native token collection has started or not
+    /// @dev `claiming` flag if the claiming has started or not (will enable claiming and locking functionality)
+    /// @dev `lockPeriodActive` flag is the lock period has started
+    /// @dev `token` address of the token
+    /// @dev `tokenBalance` contract balance of the token
+    /// @dev `allocationLimit` defined alloctaion limit
+    /// @dev `tokensPerOneNative` defined tokens per one native
+    /// @dev `totalDeposits` total amount of native deposits
+    /// @dev `totalLockedTokens` total amount of locked tokens
+    /// @dev `totalClaimedTokens` total amount of claimed tokens
+    /// @dev `estimatedTotalLockedTokensRewards` estimated amount of total rewards paid for current locked tokens
+    /// @dev `estimatedTotalLockedTokensPayouts` estimated amount of tokens incl. rewards which are getting paid out
+    /// @dev `estimatedTotalTokensPayout` estimated amount of ALL possible paid out tokens (claimed + locked + rewards)
+    /// @dev `lockPeriodStarts` the timestamp when the lock period starts
+    /// @dev `lockPeriodEnds` the timestamp when the lock period ends
+    /// @dev `lockPeriodInSeconds` lock period in seconds which result in 365d or 1y
+    /// @dev `rewardPenaltyBps` % loyalty penalty in basis points
+    /// @dev `totalRewardBps` % reward in basis points
     function getStats() external view returns (Stats memory _stats) {
         _stats = Stats(
             collecting,
