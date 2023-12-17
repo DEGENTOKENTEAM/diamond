@@ -6,10 +6,10 @@ import 'hardhat-deploy';
 import 'hardhat-deploy-ethers';
 import { HardhatUserConfig } from 'hardhat/config';
 import 'solidity-docgen';
+import './tasks';
 require('@openzeppelin/hardhat-upgrades');
 require('hardhat-contract-sizer');
 require('solidity-coverage');
-import './tasks';
 
 // load env config
 import * as dotenv from 'dotenv';
@@ -50,51 +50,56 @@ const config: HardhatUserConfig = {
     ],
   },
   namedAccounts: {
-    deployer: 0,
+    diamondDeployer: 0,
+    deployer: 1,
   },
   networks: {
     'testnet-eth': {
       chainId: parseInt(process.env.TESTNET_ETH_CHAIN_ID!),
       url: `${process.env.TESTNET_ETH_RPC!}`,
-      accounts: {
-        mnemonic: `${process.env.TESTNET_DEPLOYER_MNEMONIC}`,
-      },
+      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
     },
-
     'testnet-avax': {
       chainId: parseInt(process.env.TESTNET_AVAX_CHAIN_ID!),
       url: `${process.env.TESTNET_AVAX_RPC!}`,
-      accounts: {
-        mnemonic: `${process.env.TESTNET_DEPLOYER_MNEMONIC}`,
-      },
+      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
     },
-
     'testnet-bsc': {
       chainId: parseInt(process.env.TESTNET_BSC_CHAIN_ID!),
       url: `${process.env.TESTNET_BSC_RPC!}`,
-      accounts: {
-        mnemonic: `${process.env.TESTNET_DEPLOYER_MNEMONIC}`,
-      },
+      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
     },
-
+    'mainnet-eth': {
+      chainId: parseInt(process.env.MAINNET_ETH_CHAIN_ID!),
+      url: `${process.env.MAINNET_ETH_RPC!}`,
+      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+    },
+    'mainnet-avax': {
+      chainId: parseInt(process.env.MAINNET_AVAX_CHAIN_ID!),
+      url: `${process.env.MAINNET_AVAX_RPC!}`,
+      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+    },
+    'mainnet-bsc': {
+      chainId: parseInt(process.env.MAINNET_BSC_CHAIN_ID!),
+      url: `${process.env.MAINNET_BSC_RPC!}`,
+      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+    },
     localfork: {
       // saveDeployments: false,
       url: 'http://127.0.0.1:8545',
       chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
-      accounts: {
-        mnemonic: `${process.env.TESTNET_DEPLOYER_MNEMONIC}`,
-      },
+      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
     },
     hardhat: {
-      saveDeployments: false,
+      // saveDeployments: false,
       chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
-      accounts: {
-        mnemonic: `${process.env.TESTNET_DEPLOYER_MNEMONIC}`,
-        count: 20,
-      },
+      accounts: [
+        { privateKey: `${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, balance: (1337n * 10n ** 18n).toString() },
+        { privateKey: `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`, balance: (1337n * 10n ** 18n).toString() },
+      ],
       forking: {
         enabled: true,
-        url: process.env.LOCALFORK_RPC!,
+        url: `${process.env.LOCALFORK_RPC}`,
         // blockNumber: parseInt(process.env.LOCALFORK_BLOCK!),
       },
     },
@@ -110,8 +115,9 @@ const config: HardhatUserConfig = {
     apiKey: {
       avalanche: process.env.APIKEY_AVALANCHE || '',
       avalancheFujiTestnet: process.env.APIKEY_AVALANCHE_TESTNET || '',
-      goerli: process.env.APIKEY_GOERLI || '',
       bscTestnet: process.env.APIKEY_BSC_TESTNET || '',
+      goerli: process.env.APIKEY_GOERLI || '',
+      mainnet: process.env.APIKEY_MAINNET || '',
     },
     customChains: [
       {

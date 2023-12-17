@@ -1,11 +1,10 @@
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { Contract, ZeroAddress, keccak256, parseEther, toUtf8Bytes } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { result } from 'lodash';
 import { addOrReplaceFacets } from '../scripts/helpers/diamond';
-import { getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
+import { diamondContractName, getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
 
 // load env config
 import * as dotenv from 'dotenv';
@@ -19,19 +18,19 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
   const { deploy } = deployments;
   const chainId = await getChainId();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const contractConfig = getConfig('contracts');
   const celerConfig = getConfig('celer');
   const accountsConfig = getConfig('accounts');
-  const relayerAddressHome = getContractAddress('RelayerCeler', process.env.DEPLOY_HOME_NETWORK);
+  const relayerAddressHome = ethers.Wallet.createRandom().address;
+  // const relayerAddressHome = getContractAddress('RelayerCeler', process.env.DEPLOY_HOME_NETWORK);
   const chainIdHome = parseInt(process.env.DEPLOY_HOME_CHAIN_ID!);
   const operator = result(accountsConfig, `${chainId}.operator`, ZeroAddress);
   const messageBus = result(celerConfig, `contracts.${chainId}.messagebus`, ZeroAddress);
   const baseTokenAddress = result(contractConfig, `${chainId}.baseToken`, null);
 
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
-
-  const diamondAddress = await (await ethers.getContract('Diamond')).getAddress();
+  const diamondAddress = await (await ethers.getContract(diamondContractName)).getAddress();
   const diamondInit = await ethers.getContract('DiamondInit');
   const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
 
@@ -117,7 +116,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(``);
 
   console.log(`Add actor ${relayerAddressHome} for chain id ${chainIdHome}`);
-  await (await celerRelayerContract.addActor(chainIdHome, relayerAddressHome)).wait();
+  await (await celerRelayerContract.connect(deployerSigner).addActor(chainIdHome, relayerAddressHome)).wait();
   console.log(``);
 
   console.log(`Initialize FeeStoreFacet`);

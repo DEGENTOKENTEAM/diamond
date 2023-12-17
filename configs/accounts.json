@@ -1,10 +1,13 @@
 {
-  "1": { "operator": "", "lpTokenReceiver": "0x9cC48448ba8276640c8a77eeAE29063B697474d1" },
+  "1": {
+    "operator": "0x9999999b3234cdd43fd52e51c579595ee0799999",
+    "lpTokenReceiver": "0x9cC48448ba8276640c8a77eeAE29063B697474d1"
+  },
   "5": {
     "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
     "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
   },
-  "56": { "operator": "", "lpTokenReceiver": "" },
+  "56": { "operator": "0x9999999b3234cdd43fd52e51c579595ee0799999", "lpTokenReceiver": "" },
   "97": {
     "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
     "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
@@ -13,5 +16,8 @@
     "operator": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b",
     "lpTokenReceiver": "0x95D21F80076E29dbd7fc065d8Da0eD0a5F43Be2b"
   },
-  "43114": { "operator": "", "lpTokenReceiver": "" }
+  "43114": {
+    "operator": "0x9999999b3234cdd43fd52e51c579595ee0799999",
+    "lpTokenReceiver": "0xcA01A9d36F47561F03226B6b697B14B9274b1B10"
+  }
 }

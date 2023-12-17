@@ -1,8 +1,7 @@
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import * as dotenv from 'dotenv';
 import { expand as dotenvExpand } from 'dotenv-expand';
-import { Contract, parseEther } from 'ethers';
-import { ethers, network } from 'hardhat';
+import { Contract } from 'ethers';
+import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { addFacets } from '../scripts/helpers/diamond';
@@ -14,10 +13,8 @@ dotenvExpand(dotEnvConfig);
 const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts, getChainId } = hre;
   const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
+  const { diamondDeployer, deployer } = await getNamedAccounts();
   const chainId = await getChainId();
-
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
 
   console.log(`---------------------------------------------------------------------`);
   console.log(`Deploy ${diamondContractName} on Chain ID: ${chainId}`);
@@ -32,7 +29,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   });
   await updateDeploymentLogs('DiamondCutFacet', diamondCutFacet, false);
   const diamond = await deploy(diamondContractName, {
-    from: deployer,
+    from: diamondDeployer,
     args: [deployer, diamondCutFacet.address],
     log: true,
     skipIfAlreadyDeployed: true,

@@ -2,14 +2,13 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 // load env config
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import * as dotenv from 'dotenv';
 import { expand as dotenvExpand } from 'dotenv-expand';
-import { Contract, ZeroAddress, keccak256, parseEther, toUtf8Bytes } from 'ethers';
+import { Contract, ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { result } from 'lodash';
 import { addOrReplaceFacets } from '../scripts/helpers/diamond';
-import { getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
+import { diamondContractName, getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
 const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
 
@@ -35,9 +34,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const operator = result(accountsConfig, `${chainId}.operator`, ZeroAddress);
   const messageBus = result(celerConfig, `contracts.${chainId}.messagebus`, ZeroAddress);
 
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
-
-  const diamondAddress = await (await ethers.getContract('Diamond')).getAddress();
+  const diamondAddress = await (await ethers.getContract(diamondContractName)).getAddress();
   const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
 
   ///
