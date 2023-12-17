@@ -72,16 +72,19 @@ const config: HardhatUserConfig = {
     'mainnet-eth': {
       chainId: parseInt(process.env.MAINNET_ETH_CHAIN_ID!),
       url: `${process.env.MAINNET_ETH_RPC!}`,
+      gasMultiplier: 1.2,
       accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
     },
     'mainnet-avax': {
       chainId: parseInt(process.env.MAINNET_AVAX_CHAIN_ID!),
       url: `${process.env.MAINNET_AVAX_RPC!}`,
+      gasMultiplier: 1.2,
       accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
     },
     'mainnet-bsc': {
       chainId: parseInt(process.env.MAINNET_BSC_CHAIN_ID!),
       url: `${process.env.MAINNET_BSC_RPC!}`,
+      gasMultiplier: 1.2,
       accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
     },
     localfork: {
