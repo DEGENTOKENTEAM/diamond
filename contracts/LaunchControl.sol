@@ -38,7 +38,7 @@ contract LaunchControl is Ownable {
         if (router == address(0)) revert("missing router");
         token = _token;
         lp = IFactory(IRouter02(router).factory()).createPair(token, IRouter02(router).WETH());
-        IERC20Facet(token).setLP(lp);
+        IERC20Facet(token).addLP(lp);
     }
 
     function setStartPoolWithToken(uint256 _amount) external onlyOwner {
@@ -54,7 +54,7 @@ contract LaunchControl is Ownable {
     }
 
     function addLiquidity() external onlyOwner {
-        if (lp == address(0) || token == address(0)) revert("set token first");
+        if (token == address(0)) revert("set token first");
         if (lpTokenReceiver == address(0)) revert("lp token receiver not set");
 
         uint256 _balanceA = address(this).balance;

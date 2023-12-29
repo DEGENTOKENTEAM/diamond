@@ -13,9 +13,8 @@ import { BURNER_ROLE, MINTER_ROLE } from './utils/mocks';
 
 const deployFixture = async () => {
   const { diamond, diamondAddress } = await deployDiamondFixture();
-  const { facetContract: facetAContract } = await deployFacet('AccessControlEnumerableFacet');
   const { facetContract: facetBContract } = await deployFacet('ERC20Facet');
-  await addFacets([facetAContract, facetBContract], diamondAddress);
+  await addFacets([facetBContract], diamondAddress);
   return { diamond, diamondAddress };
 };
 
@@ -27,8 +26,8 @@ describe('DegenX (DGNX ERC20)', function () {
 
   beforeEach(async () => {
     const { diamond: _diamond, diamondAddress: _diamondAddress } = await deployFixture();
-    const { deployer: _deployerAddress } = await getNamedAccounts();
-    [deployer] = await ethers.getSigners();
+    const { diamondDeployer: _deployerAddress } = await getNamedAccounts();
+    deployer = await ethers.getSigner(_deployerAddress);
     diamond = _diamond;
     diamondAddress = _diamondAddress;
     deployerAddress = _deployerAddress;
@@ -44,64 +43,86 @@ describe('DegenX (DGNX ERC20)', function () {
     await expect(ERC20Facet.initERC20Facet('DegenX', 'DGNX', 18)).to.be.revertedWith('initialized');
   });
 
-  it('can release tokens when MINTER_ROLE', async () => {
+  it('address can mint a specific max amount of tokens', async () => {
     const [, minter, tokenReceiver] = await ethers.getSigners();
-    setBalance(minter.address, parseEther('1'));
-    const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
-    await expect(ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).to.revertedWith(
-      accessControlError(minter.address, MINTER_ROLE)
+    setBalance(minter.address, parseEther('10'));
+    await expect(ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).to.revertedWithCustomError(
+      ERC20Facet,
+      'NotAllowed'
     );
-    await (await accessControlEnumerableFacet.connect(deployer).grantRole(MINTER_ROLE, minter.address)).wait();
-    await expect(ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1')))
-      .to.emit(ERC20Facet, 'Transfer')
-      .withArgs(ZeroAddress, tokenReceiver.address, parseEther('1'));
-    expect(await ERC20Facet.balanceOf(tokenReceiver.address)).to.eq(parseEther('1'));
-  });
-
-  it('can burn tokens when BURNER_ROLE', async () => {
-    const [, minter, tokenReceiver] = await ethers.getSigners();
-    setBalance(minter.address, parseEther('1'));
-    setBalance(tokenReceiver.address, parseEther('1'));
-    const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
-    expect(await ERC20Facet.totalSupply()).to.eq(0);
-    await (await accessControlEnumerableFacet.connect(deployer).grantRole(MINTER_ROLE, minter.address)).wait();
-    await (await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).wait();
-    expect(await ERC20Facet.balanceOf(tokenReceiver.address)).to.eq(parseEther('1'));
+    await expect(ERC20Facet.connect(deployer).updateBridgeSupplyCap(minter.address, parseEther('1')))
+      .to.emit(ERC20Facet, 'BridgeSupplyCapUpdated')
+      .withArgs(minter.address, parseEther('1'));
+    expect(await ERC20Facet.bridges(minter.address)).to.deep.eq([1000000000000000000n, 0]);
+    const tx = await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'));
+    await expect(tx).to.emit(ERC20Facet, 'Transfer').withArgs(ZeroAddress, tokenReceiver.address, parseEther('1'));
+    await expect(tx).to.changeTokenBalance(ERC20Facet, tokenReceiver.address, parseEther('1'));
     expect(await ERC20Facet.totalSupply()).to.eq(parseEther('1'));
-    await (await ERC20Facet.connect(tokenReceiver).approve(await ERC20Facet.getAddress(), parseEther('1'))).wait();
-    await (await accessControlEnumerableFacet.connect(deployer).revokeRole(BURNER_ROLE, minter.address)).wait();
-    await expect(ERC20Facet.connect(minter).burn(tokenReceiver.address, parseEther('1'))).to.revertedWith(
-      accessControlError(minter.address, BURNER_ROLE)
-    );
-    await (await accessControlEnumerableFacet.connect(deployer).grantRole(BURNER_ROLE, minter.address)).wait();
-    await expect(ERC20Facet.connect(minter).burn(tokenReceiver.address, parseEther('1')))
-      .to.emit(ERC20Facet, 'Transfer')
-      .withArgs(tokenReceiver.address, ZeroAddress, parseEther('1'));
-    expect(await ERC20Facet.totalSupply()).to.eq(0);
+    await expect(ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('0.1')))
+      .to.be.revertedWithCustomError(ERC20Facet, 'BridgeSupplyExceeded')
+      .withArgs(parseEther('0.1'), parseEther('1'));
+    expect(await ERC20Facet.bridges(minter.address)).to.deep.eq([1000000000000000000n, 1000000000000000000n]);
   });
 
-  it('should not be able to burn 0x0000 and 0xdead', async () => {
-    const [, minter] = await ethers.getSigners();
-    setBalance(minter.address, parseEther('1'));
-    const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
-    await (await accessControlEnumerableFacet.connect(deployer).grantRole(MINTER_ROLE, minter.address)).wait();
-    await (await ERC20Facet.connect(minter).mint(deployer.address, parseEther('1'))).wait();
-    await (await ERC20Facet.connect(minter).mint(minter.address, parseEther('1'))).wait();
-    await expect(ERC20Facet.transfer(`0x${''.padEnd(36, '0')}dEaD`, parseEther('1'))).to.be.revertedWithCustomError(
-      ERC20Facet,
-      'NoBurnPossible'
-    );
+  it('address can burn a specific max amount of tokens', async () => {
+    const [, minter, tokenReceiver] = await ethers.getSigners();
+    setBalance(minter.address, parseEther('10'));
+    setBalance(tokenReceiver.address, parseEther('10'));
+    expect(await ERC20Facet.totalSupply()).to.eq(0);
+    await (await ERC20Facet.updateBridgeSupplyCap(minter.address, parseEther('1'))).wait();
+    await (await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).wait();
+
+    await expect(ERC20Facet.connect(minter)['burn(address,uint256)'](tokenReceiver.address, parseEther('2')))
+      .to.be.revertedWithCustomError(ERC20Facet, 'BridgeSupplyExceeded')
+      .withArgs(parseEther('2'), parseEther('1'));
+
+    // allowance
+    await (await ERC20Facet.connect(tokenReceiver).approve(minter.address, parseEther('1'))).wait();
     await expect(
-      ERC20Facet.connect(minter).transfer(`0x${''.padEnd(36, '0')}dEaD`, parseEther('1'))
-    ).to.be.revertedWithCustomError(ERC20Facet, 'NoBurnPossible');
-    await expect(ERC20Facet.transfer(ZeroAddress, parseEther('1'))).to.be.revertedWithCustomError(
+      ERC20Facet.connect(minter)['burn(address,uint256)'](tokenReceiver.address, parseEther('1'))
+    ).to.changeTokenBalance(ERC20Facet, tokenReceiver.address, parseEther('-1'));
+
+    expect(await ERC20Facet.allowance(tokenReceiver.address, minter.address)).to.eq(0);
+    expect(await ERC20Facet.totalSupply()).to.eq(0);
+
+    await expect(ERC20Facet.connect(minter).burnFrom(tokenReceiver.address, parseEther('1')))
+      .to.be.revertedWithCustomError(ERC20Facet, 'BridgeSupplyExceeded')
+      .withArgs(parseEther('1'), parseEther('0'));
+
+    //when cap is set to 0 but there is still tokens left for this address being burnable
+    await (await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).wait();
+    await (await ERC20Facet.updateBridgeSupplyCap(minter.address, parseEther('0'))).wait();
+    await (await ERC20Facet.connect(tokenReceiver).approve(minter.address, parseEther('1'))).wait();
+    await expect(ERC20Facet.connect(minter).burnFrom(tokenReceiver.address, parseEther('1'))).to.changeTokenBalance(
       ERC20Facet,
-      'ERC20Base__TransferToZeroAddress'
+      tokenReceiver.address,
+      parseEther('-1')
     );
-    await expect(ERC20Facet.connect(minter).transfer(ZeroAddress, parseEther('1'))).to.be.revertedWithCustomError(
+
+    // simple burn
+    await (await ERC20Facet.updateBridgeSupplyCap(minter.address, parseEther('1'))).wait();
+    await (await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).wait();
+    await expect(ERC20Facet.connect(tokenReceiver)['burn(uint256)'](parseEther('1'))).to.changeTokenBalance(
       ERC20Facet,
-      'ERC20Base__TransferToZeroAddress'
+      tokenReceiver.address,
+      parseEther('-1')
     );
+
+    // simple burnFrom
+    await (await ERC20Facet.updateBridgeSupplyCap(minter.address, parseEther('2'))).wait();
+    await (await ERC20Facet.connect(minter).mint(tokenReceiver.address, parseEther('1'))).wait();
+    await (await ERC20Facet.connect(tokenReceiver).approve(deployerAddress, parseEther('1'))).wait();
+    await expect(ERC20Facet['burn(address,uint256)'](tokenReceiver.address, parseEther('1'))).to.changeTokenBalance(
+      ERC20Facet,
+      tokenReceiver.address,
+      parseEther('-1')
+    );
+    expect(await ERC20Facet.totalSupply()).to.eq(0);
+    expect(await ERC20Facet.bridges(minter.address)).to.deep.eq([2000000000000000000n, 2000000000000000000n]);
+  });
+
+  it('should return owner address', async () => {
+    expect(await ERC20Facet.getOwner()).to.eq(deployerAddress);
   });
 
   describe('Post Initialize', () => {
@@ -131,7 +152,11 @@ describe('DegenX (DGNX ERC20)', function () {
       describe('Liquidity Pool', () => {
         it('should be able to set an LP address', async () => {
           const _lp = ethers.Wallet.createRandom().address;
-          await expect(ERC20Facet.setLP(_lp)).to.emit(ERC20Facet, 'SetLP').withArgs(_lp);
+          expect(await ERC20Facet.hasLP(_lp)).to.be.false;
+          await expect(ERC20Facet.addLP(_lp)).to.emit(ERC20Facet, 'AddLP').withArgs(_lp);
+          expect(await ERC20Facet.hasLP(_lp)).to.be.true;
+          await expect(ERC20Facet.removeLP(_lp)).to.emit(ERC20Facet, 'RemoveLP').withArgs(_lp);
+          expect(await ERC20Facet.hasLP(_lp)).to.be.false;
         });
       });
 
@@ -224,10 +249,11 @@ describe('DegenX (DGNX ERC20)', function () {
 
         // initilize token with the desired swap path to the fee token
         await (await ERC20Facet.initERC20Facet('DegenX', 'DGNX', 18)).wait();
-        await (await ERC20Facet.setLP(lp.address)).wait();
+        await (await ERC20Facet.addLP(lp.address)).wait();
         await (await ERC20Facet.enable()).wait();
 
         // mint tokens and send to actors
+        await (await ERC20Facet.updateBridgeSupplyCap(deployerAddress, parseEther('200'))).wait();
         await (await ERC20Facet.mint(deployerAddress, parseEther('100'))).wait();
         await (await ERC20Facet.mint(lp.address, parseEther('100'))).wait();
 
@@ -332,7 +358,7 @@ describe('DegenX (DGNX ERC20)', function () {
       });
 
       it('should have getters to reflect the store', async () => {
-        expect(await ERC20Facet.getLP()).to.eq(lp.address);
+        expect(await ERC20Facet.hasLP(lp.address)).to.be.true;
         expect(await ERC20Facet.getBuyFees()).to.deep.eq([feeAId, feeBId]);
         expect(await ERC20Facet.getSellFees()).to.deep.eq([feeCId, feeDId]);
       });

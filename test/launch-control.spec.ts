@@ -20,7 +20,7 @@ let router = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
 
 const deployFixture = async () => {
   const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
+  const { diamondDeployer: deployer } = await getNamedAccounts();
 
   // deploy diamond
   const { diamondAddress } = await deployDiamondFixture();
@@ -44,7 +44,15 @@ const deployFixture = async () => {
   await (await accessControl.grantRole(MINTER_ROLE, launchAddress)).wait();
   await (await accessControl.grantRole(ADMIN_ROLE, launchAddress)).wait();
 
-  return { deployer, diamondAddress, launchAddress, msig, launch, erc20Facet, accessControl };
+  return {
+    deployer,
+    diamondAddress,
+    launchAddress,
+    msig,
+    launch,
+    erc20Facet,
+    accessControl,
+  };
 };
 
 describe('LaunchControl', function () {
@@ -90,7 +98,7 @@ describe('LaunchControl', function () {
       expect(await launch.token()).to.eq(diamondAddress);
       const lp = await launch.lp();
       expect(lp).to.not.eq(ZeroAddress);
-      expect(await erc20Facet.getLP()).to.eq(lp);
+      expect(await erc20Facet.hasLP(lp)).to.be.true;
     });
 
     it('should set an amount of tokens used for start', async function () {
@@ -109,6 +117,7 @@ describe('LaunchControl', function () {
     });
 
     it('should add liquidity to a pair', async function () {
+      await (await erc20Facet.updateBridgeSupplyCap(deployer, parseEther('100'))).wait();
       await (await erc20Facet.enable()).wait();
       await (await erc20Facet.mint(deployer, parseEther('100'))).wait();
       await expect(launch.addLiquidity()).to.be.revertedWith('set token first');
@@ -143,6 +152,7 @@ describe('LaunchControl', function () {
     });
 
     it('should enable trading', async function () {
+      await (await erc20Facet.updateBridgeSupplyCap(deployer, parseEther('100'))).wait();
       await (await erc20Facet.enable()).wait();
       await expect(launch.startTrading()).to.be.revertedWith('no token');
       await (await launch.setToken(diamondAddress)).wait();
@@ -171,6 +181,7 @@ describe('LaunchControl', function () {
       const [deployerSigner] = await ethers.getSigners();
       const launchAddress = await launch.getAddress();
       const tokenAddress = await erc20Facet.getAddress();
+      await (await erc20Facet.updateBridgeSupplyCap(deployer, parseEther('11'))).wait();
       await (await erc20Facet.enable()).wait();
       await (await erc20Facet.mint(launchAddress, parseEther('10'))).wait();
       await (await deployerSigner.sendTransaction({ to: launchAddress, value: parseEther('10') })).wait();
@@ -194,6 +205,7 @@ describe('LaunchControl', function () {
 
   describe('Full circle setup', function () {
     it('should launch successfully', async function () {
+      await (await erc20Facet.updateBridgeSupplyCap(deployer, parseEther('11'))).wait();
       await (await erc20Facet.enable()).wait();
       await (await erc20Facet.mint(launchAddress, parseEther('11'))).wait();
       await (await launch.setLpTokenReceiver(deployer)).wait();
