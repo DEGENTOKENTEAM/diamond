@@ -1,0 +1,28 @@
+{
+  "contracts": {
+    "1337": {
+      "messagebus": "0xF25170F86E4291a99a9A560032Fe9948b8BcFBB2",
+      "cbridge": "0x358234B325EF9eA8115291A8b81b7d33A2Fa762D"
+    },
+    "1": {
+      "messagebus": "0x4066D196A423b2b3B8B054f4F40efB47a74E200C",
+      "cbridge": "0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820"
+    },
+    "5": {
+      "messagebus": "0xF25170F86E4291a99a9A560032Fe9948b8BcFBB2",
+      "cbridge": "0x358234B325EF9eA8115291A8b81b7d33A2Fa762D"
+    },
+    "97": {
+      "messagebus": "0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA",
+      "cbridge": "0xf89354F314faF344Abd754924438bA798E306DF2"
+    },
+    "43113": {
+      "messagebus": "0xE9533976C590200E32d95C53f06AE12d292cFc47",
+      "cbridge": "0xe95E3a9f1a45B5EDa71781448F6047d7B7e31cbF"
+    },
+    "43114": {
+      "messagebus": "0x5a926eeeAFc4D217ADd17e9641e8cE23Cd01Ad57",
+      "cbridge": "0xef3c714c9425a8F3697A9C969Dc1af30ba82e5d4"
+    }
+  }
+}
