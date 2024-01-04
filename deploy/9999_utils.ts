@@ -152,10 +152,6 @@ export const deployFacet = async function (
   name: string,
   options?: { address?: string; args?: any[] }
 ) {
-  if (network.name !== 'zksync' && network.name !== 'zksyncGoerli') {
-    return;
-  }
-
   const { deployments, getNamedAccounts } = hre;
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
@@ -185,10 +181,6 @@ export const verifyContract = async function (
   name: string,
   options?: { address?: string; args?: any[] }
 ) {
-  if (network.name !== 'zksync' && network.name !== 'zksyncGoerli') {
-    return;
-  }
-
   try {
     await hre.run('verify:verify', {
       address: options?.address || (await (await ethers.getContract(name)).getAddress()),

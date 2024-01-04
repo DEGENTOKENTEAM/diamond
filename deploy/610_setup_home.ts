@@ -1,5 +1,5 @@
 import { ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
-import { ethers } from 'hardhat';
+import { ethers, getNamedAccounts } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { result } from 'lodash';
@@ -10,6 +10,8 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const startTime = Date.now();
   const diamond = await ethers.getContract(diamondContractName);
   const diamonAddress = await diamond.getAddress();
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const chainId = await hre.getChainId();
   const targetChainId = +process.env.DEPLOY_TARGET_CHAIN_ID!;
@@ -38,7 +40,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const platformAddress = result(contractsConfig, `${chainId}.platform`, ZeroAddress);
   const developerAddress = result(contractsConfig, `${chainId}.development`, ZeroAddress);
   const lbAddress = result(contractsConfig, `${chainId}.liquidityBacking`, ZeroAddress);
-  const diamonAddressTarget = getContractAddress('Diamond', process.env.DEPLOY_TARGET_NETWORK);
+  const diamonAddressTarget = getContractAddress(diamondContractName, process.env.DEPLOY_TARGET_NETWORK);
   const relayerCelerAddressTarget = getContractAddress('RelayerCeler', process.env.DEPLOY_TARGET_NETWORK);
 
   console.log(``);
@@ -146,7 +148,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(``);
 
   console.log(`Add Actor ${relayerCelerAddressTarget} for chain id ${targetChainId} on home relayer`);
-  await (await relayerCeler.addActor(targetChainId, relayerCelerAddressTarget)).wait();
+  await (await relayerCeler.connect(deployerSigner).addActor(targetChainId, relayerCelerAddressTarget)).wait();
 
   console.log(``);
   console.log(`---------------------------------------------------------------------`);

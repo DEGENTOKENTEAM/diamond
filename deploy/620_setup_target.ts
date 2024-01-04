@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat';
+import { ethers, getNamedAccounts } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { RelayerCeler } from '../typechain-types';
@@ -7,6 +7,8 @@ import { getContractAddress } from './9999_utils';
 const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const startTime = Date.now();
   const chainId = await hre.getChainId();
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   console.log(`---------------------------------------------------------------------`);
   console.log(`Setup Target with chain id ${chainId}`);
@@ -23,7 +25,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const chainIdHome = +process.env.DEPLOY_HOME_CHAIN_ID!;
   const relayerCeler = (await ethers.getContract('RelayerCeler')) as RelayerCeler;
 
-  await (await relayerCeler.addActor(chainIdHome, relayerCelerAddressHome)).wait();
+  await (await relayerCeler.connect(deployerSigner).addActor(chainIdHome, relayerCelerAddressHome)).wait();
   console.log(`Added the HOME CHAIN and HOME RELAYER ADDRESS as an Actor to the TARGET Relayer`);
 
   console.log(``);

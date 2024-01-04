@@ -1,6 +1,5 @@
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { formatEther, parseEther } from 'ethers';
-import { ethers, network } from 'hardhat';
+import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { updateDeploymentLogs } from './9999_utils';
@@ -17,15 +16,12 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
   const { deploy } = deployments;
   const chainId = await getChainId();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   console.log(`---------------------------------------------------------------------`);
   console.log(`Deploy Degen ATM on Chain ID: ${chainId}`);
   console.log(`---------------------------------------------------------------------`);
   console.log(``);
-
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
-
-  const diamondAddress = await (await ethers.getContract('Diamond')).getAddress();
 
   console.log(`Deploy DegenATM`);
   const deployResult = await deploy('DegenATM', {
@@ -38,13 +34,9 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(`Deployed DegenATM to ${atmAddress}`);
   console.log(``);
 
-  console.log(`Set token to ${diamondAddress}`);
-  await (await atm.setToken(diamondAddress)).wait();
-  console.log(``);
-
-  const allocationLimit = parseEther('5.5');
+  const allocationLimit = parseEther('13');
   console.log(`Set allocation limit to ${formatEther(allocationLimit)}`);
-  await (await atm.setAllocationLimit(allocationLimit)).wait();
+  await (await atm.connect(deployerSigner).setAllocationLimit(allocationLimit)).wait();
   console.log(``);
 
   console.log(`---------------------------------------------------------------------`);
