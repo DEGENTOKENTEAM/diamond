@@ -23,15 +23,15 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const relayerCelerAddressHome = getContractAddress('RelayerCeler', process.env.DEPLOY_HOME_NETWORK);
   const chainIdHome = +process.env.DEPLOY_HOME_CHAIN_ID!;
-  const relayerCeler = (await ethers.getContract('RelayerCeler')) as RelayerCeler;
+  const relayerCeler = (await ethers.getContract('RelayerCeler', deployerSigner)) as RelayerCeler;
 
-  await (await relayerCeler.connect(deployerSigner).addActor(chainIdHome, relayerCelerAddressHome)).wait();
+  await (await relayerCeler.addActor(chainIdHome, relayerCelerAddressHome)).wait();
   console.log(`Added the HOME CHAIN and HOME RELAYER ADDRESS as an Actor to the TARGET Relayer`);
 
   console.log(``);
   console.log(`---------------------------------------------------------------------`);
   console.log(``);
-  console.log(`Finished after ${((Date.now() - startTime) / 1000).toPrecision(2)} seconds`);
+  console.log(`Finished after ${Math.floor((Date.now() - startTime) / 1000)} seconds`);
 };
 
 export default main;
