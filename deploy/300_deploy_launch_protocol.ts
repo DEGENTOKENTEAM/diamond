@@ -53,7 +53,9 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(`Set router to ${router}`);
   await (await launchControl.connect(deployerSigner).setRouter(router)).wait();
   console.log(`Set token to ${diamondAddress} and create pair`);
+  console.log(`Pair address before: ${await launchControl.lp()}`);
   await (await launchControl.connect(deployerSigner).setToken(diamondAddress)).wait();
+  console.log(`Pair address after: ${await launchControl.lp()}`);
   console.log(`Set lp token receiver to ${lpTokenReceiver}`);
   await (await launchControl.connect(deployerSigner).setLpTokenReceiver(lpTokenReceiver)).wait();
   console.log(``);

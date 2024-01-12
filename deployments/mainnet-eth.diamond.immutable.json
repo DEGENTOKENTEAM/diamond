@@ -44,6 +44,10 @@
       "0x98e18683dbD0e3305b36366f350F695B63f55680": {
         "Name": "ERC20Facet",
         "Version": "1.1.0"
+      },
+      "0xa149C042b05B5F49353F6593d709EA6cACbEB48B": {
+        "Name": "LaunchControl",
+        "Version": "1.0.0"
       }
     }
   }

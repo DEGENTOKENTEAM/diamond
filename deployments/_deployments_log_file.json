@@ -572,5 +572,20 @@
         ]
       }
     }
+  },
+  "LaunchControl": {
+    "mainnet-eth": {
+      "production": {
+        "1.0.0": [
+          {
+            "ADDRESS": "0xa149C042b05B5F49353F6593d709EA6cACbEB48B",
+            "OPTIMIZER_RUNS": "10000",
+            "TIMESTAMP": "2024-01-11 15:14:35",
+            "CONSTRUCTOR_ARGS": "0x",
+            "VERIFIED": "false"
+          }
+        ]
+      }
+    }
   }
 }
