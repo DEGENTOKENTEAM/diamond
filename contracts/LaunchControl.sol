@@ -37,7 +37,11 @@ contract LaunchControl is Ownable {
     function setToken(address _token) external onlyOwner {
         if (router == address(0)) revert("missing router");
         token = _token;
-        lp = IFactory(IRouter02(router).factory()).createPair(token, IRouter02(router).WETH());
+        address _WETH = IRouter02(router).WETH();
+        lp = IFactory(IRouter02(router).factory()).getPair(token, _WETH);
+        if (lp == address(0)) {
+            lp = IFactory(IRouter02(router).factory()).createPair(token, IRouter02(router).WETH());
+        }
         IERC20Facet(token).addLP(lp);
     }
 

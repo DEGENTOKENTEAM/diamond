@@ -26,7 +26,8 @@ export async function addOrReplaceFacets(
   facets: Contract[],
   diamondAddress: string,
   initContract: string = ZeroAddress,
-  initData = '0x'
+  initData = '0x',
+  signer?: string
 ): Promise<void> {
   const loupe = <IDiamondLoupe>await ethers.getContractAt('IDiamondLoupe', diamondAddress);
 
@@ -72,7 +73,7 @@ export async function addOrReplaceFacets(
   }
 
   !verbose || console.log('Adding/Replacing facet(s)...');
-  await doCut(diamondAddress, cut, initContract, initData);
+  await doCut(diamondAddress, cut, initContract, initData, signer);
 
   !verbose || console.log('Done.');
 }
@@ -81,7 +82,8 @@ export async function addFacets(
   facets: Contract[],
   diamondAddress: string,
   initContract: string = ZeroAddress,
-  initData = '0x'
+  initData = '0x',
+  signer?: string
 ): Promise<void> {
   const cut = [];
   for (const f of facets) {
@@ -100,12 +102,12 @@ export async function addFacets(
   }
 
   !verbose || console.log('Adding facet(s)...');
-  await doCut(diamondAddress, cut, initContract, initData);
+  await doCut(diamondAddress, cut, initContract, initData, signer);
 
   !verbose || console.log('Done.');
 }
 
-export async function removeFacet(selectors: string[], diamondAddress: string): Promise<void> {
+export async function removeFacet(selectors: string[], diamondAddress: string, signer?: string): Promise<void> {
   const cut = [
     {
       facetAddress: ZeroAddress,
@@ -115,7 +117,7 @@ export async function removeFacet(selectors: string[], diamondAddress: string): 
   ];
 
   !verbose || console.log('Removing facet...');
-  await doCut(diamondAddress, cut, ZeroAddress, '0x');
+  await doCut(diamondAddress, cut, ZeroAddress, '0x', signer);
 
   !verbose || console.log('Done.');
 }
@@ -124,7 +126,8 @@ export async function replaceFacet(
   facet: Contract,
   diamondAddress: string,
   initContract: string = ZeroAddress,
-  initData = '0x'
+  initData = '0x',
+  signer?: string
 ): Promise<void> {
   const selectors = getSelectors(facet);
 
@@ -137,15 +140,23 @@ export async function replaceFacet(
   ];
 
   !verbose || console.log('Replacing facet...');
-  await doCut(diamondAddress, cut, initContract, initData);
+  await doCut(diamondAddress, cut, initContract, initData, signer);
 
   !verbose || console.log('Done.');
 }
 
-async function doCut(diamondAddress: string, cut: any[], initContract: string, initData: string): Promise<void> {
+async function doCut(
+  diamondAddress: string,
+  cut: any[],
+  initContract: string,
+  initData: string,
+  signer?: string
+): Promise<void> {
+  const [defaultSigner] = await ethers.getSigners();
+  const connectWith = signer ? await ethers.getSigner(signer) : defaultSigner;
   const cutter = <IDiamondCut>await ethers.getContractAt('IDiamondCut', diamondAddress);
 
-  const tx = await cutter.diamondCut(cut, initContract, initData);
+  const tx = await cutter.connect(connectWith).diamondCut(cut, initContract, initData);
   !verbose || console.log('Diamond cut tx: ', tx.hash);
   const receipt = await tx.wait();
   if (!receipt?.status) {

@@ -1,11 +1,10 @@
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
-import { Contract, ZeroAddress, keccak256, parseEther, toUtf8Bytes } from 'ethers';
-import { ethers, network } from 'hardhat';
+import { Contract, ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
+import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { result } from 'lodash';
-import { addOrReplaceFacets } from '../scripts/helpers/diamond';
-import { getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
+import { addFacets } from '../scripts/helpers/diamond';
+import { diamondContractName, getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
 
 // load env config
 import * as dotenv from 'dotenv';
@@ -19,6 +18,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
   const { deploy } = deployments;
   const chainId = await getChainId();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const contractConfig = getConfig('contracts');
   const celerConfig = getConfig('celer');
@@ -29,9 +29,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const messageBus = result(celerConfig, `contracts.${chainId}.messagebus`, ZeroAddress);
   const baseTokenAddress = result(contractConfig, `${chainId}.baseToken`, null);
 
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
-
-  const diamondAddress = await (await ethers.getContract('Diamond')).getAddress();
+  const diamondAddress = await (await ethers.getContract(diamondContractName)).getAddress();
   const diamondInit = await ethers.getContract('DiamondInit');
   const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
 
@@ -87,11 +85,12 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const celerFeeHubFacetContract = (await ethers.getContract('CelerFeeHubFacet')) as Contract;
   const erc20FacetContract = (await ethers.getContract('ERC20Facet')) as Contract;
 
-  await addOrReplaceFacets(
+  await addFacets(
     [feeStoreFacetContract, celerFeeHubFacetContract, erc20FacetContract],
     diamondAddress,
     await diamondInit.getAddress(),
-    diamondInit.interface.encodeFunctionData('init')
+    diamondInit.interface.encodeFunctionData('init'),
+    deployer
   );
 
   ///
@@ -109,23 +108,24 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   console.log(`Grant Relayer FEE_STORE_MANAGER_ROLE`);
   await (
-    await accessControlEnumerableFacet.grantRole(
-      keccak256(toUtf8Bytes('FEE_STORE_MANAGER_ROLE')),
-      celerRelayerDeployResult.address
-    )
+    await accessControlEnumerableFacet
+      .connect(deployerSigner)
+      .grantRole(keccak256(toUtf8Bytes('FEE_STORE_MANAGER_ROLE')), celerRelayerDeployResult.address)
   ).wait();
   console.log(``);
 
   console.log(`Add actor ${relayerAddressHome} for chain id ${chainIdHome}`);
-  await (await celerRelayerContract.addActor(chainIdHome, relayerAddressHome)).wait();
+  await (await celerRelayerContract.connect(deployerSigner).addActor(chainIdHome, relayerAddressHome)).wait();
   console.log(``);
 
   console.log(`Initialize FeeStoreFacet`);
-  await (await feeStoreFacet.initFeeStoreFacet(operator, baseTokenAddress || diamondAddress)).wait();
+  await (
+    await feeStoreFacet.connect(deployerSigner).initFeeStoreFacet(operator, baseTokenAddress || diamondAddress)
+  ).wait();
   console.log(``);
 
   console.log(`Initialize ERC20Facet`);
-  await (await erc20Facet.initERC20Facet('JUST DO IT', 'NIKE', 18)).wait();
+  await (await erc20Facet.connect(deployerSigner).initERC20Facet('JUST DO IT', 'NIKE', 18)).wait();
 
   console.log(``);
   console.log(`---------------------------------------------------------------------`);

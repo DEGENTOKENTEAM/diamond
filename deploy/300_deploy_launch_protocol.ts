@@ -1,10 +1,9 @@
-import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
-import { ZeroAddress, keccak256, parseEther, toUtf8Bytes } from 'ethers';
-import { ethers, network } from 'hardhat';
+import { ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
+import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { result } from 'lodash';
-import { getConfig, updateDeploymentLogs } from './9999_utils';
+import { diamondContractName, getConfig, updateDeploymentLogs } from './9999_utils';
 
 // load env config
 import * as dotenv from 'dotenv';
@@ -18,13 +17,12 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
   const { deploy } = deployments;
   const chainId = await getChainId();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   console.log(`---------------------------------------------------------------------`);
   console.log(`Deploy Launch Protocol on Chain ID: ${chainId}`);
   console.log(`---------------------------------------------------------------------`);
   console.log(``);
-
-  if (network.name === 'localfork' || network.name === 'hardhat') setBalance(deployer, parseEther('100'));
 
   const accountsConfig = getConfig('accounts');
   const contractsConfig = getConfig('contracts');
@@ -32,7 +30,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const lpTokenReceiver = result(accountsConfig, `${chainId}.lpTokenReceiver`, deployer);
   const router = result(contractsConfig, `${chainId}.router`, ZeroAddress);
 
-  const diamondAddress = await (await ethers.getContract('Diamond')).getAddress();
+  const diamondAddress = await (await ethers.getContract(diamondContractName)).getAddress();
   const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
 
   console.log(`Deploy LaunchControl`);
@@ -53,11 +51,13 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(``);
 
   console.log(`Set router to ${router}`);
-  await (await launchControl.setRouter(router)).wait();
+  await (await launchControl.connect(deployerSigner).setRouter(router)).wait();
   console.log(`Set token to ${diamondAddress} and create pair`);
-  await (await launchControl.setToken(diamondAddress)).wait();
+  console.log(`Pair address before: ${await launchControl.lp()}`);
+  await (await launchControl.connect(deployerSigner).setToken(diamondAddress)).wait();
+  console.log(`Pair address after: ${await launchControl.lp()}`);
   console.log(`Set lp token receiver to ${lpTokenReceiver}`);
-  await (await launchControl.setLpTokenReceiver(lpTokenReceiver)).wait();
+  await (await launchControl.connect(deployerSigner).setLpTokenReceiver(lpTokenReceiver)).wait();
   console.log(``);
 
   console.log(`---------------------------------------------------------------------`);

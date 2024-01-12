@@ -2,8 +2,8 @@ import { Contract, ZeroAddress } from 'ethers';
 import { ethers, getChainId } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { addOrReplaceFacets } from '../scripts/helpers/diamond';
-import { diamondContractName, updateDeploymentLogs, verifyContract } from './9999_utils';
+import { replaceFacet } from '../scripts/helpers/diamond';
+import { diamondContractName, updateDeploymentLogs } from './9999_utils';
 
 // load env config
 import * as dotenv from 'dotenv';
@@ -17,10 +17,9 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
   const chainId = await getChainId();
-  // const deployerSigner = await ethers.getSigner(deployer);
 
   console.log(`---------------------------------------------------------------------`);
-  console.log(`Update ERC20 Facet On Chain ID: ${chainId}`);
+  console.log(`Update Diamond Cut Facet on Chain ID: ${chainId}`);
   console.log(`---------------------------------------------------------------------`);
   console.log(``);
 
@@ -29,31 +28,19 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   ///
   /// Facets
   ///
-  console.log(`Deploy ERC20Facet...`);
-  const erc20FacetDeployResult = await deploy('ERC20Facet', {
+  console.log(`Deploy facet...`);
+  const diamondCutFacetDeployResult = await deploy('DiamondCutFacet', {
     from: deployer,
     log: true,
   });
   console.log(`...done`);
+  await updateDeploymentLogs('DiamondCutFacet', diamondCutFacetDeployResult, false);
+  const diamondCutFacetContract = (await ethers.getContract('DiamondCutFacet')) as Contract;
 
   console.log(``);
-  console.log(`Verify ERC20Facet...`);
-  const verified = await verifyContract(hre, 'ERC20Facet');
-  await updateDeploymentLogs('ERC20Facet', erc20FacetDeployResult, verified);
-  if (!verified) console.log(`...error verification`);
+  console.log(`Replace Facet...`);
+  await replaceFacet(diamondCutFacetContract, diamondAddress, ZeroAddress, '0x', deployer);
   console.log(`...done`);
-
-  console.log(``);
-  console.log(`Update Facet...`);
-  const erc20FacetContract = (await ethers.getContract('ERC20Facet')) as Contract;
-  await addOrReplaceFacets([erc20FacetContract], diamondAddress, ZeroAddress, '0x', deployer);
-  console.log(`...done`);
-
-  // console.log(``);
-  // console.log(`Initialize ERC20Facet...`);
-  // const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
-  // await (await erc20Facet.connect(deployerSigner).initERC20Facet('DegenX', 'DGNX', 18)).wait();
-  // console.log(`...done`);
 
   console.log(``);
   console.log(`---------------------------------------------------------------------`);
@@ -63,5 +50,5 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default main;
 
-main.id = 'update_erc20';
-main.tags = ['UpdateERC20'];
+main.id = 'update_diamondCut';
+main.tags = ['UpdateDiamondCut'];

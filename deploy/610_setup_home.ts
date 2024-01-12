@@ -1,5 +1,5 @@
 import { ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
-import { ethers } from 'hardhat';
+import { ethers, getNamedAccounts } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { result } from 'lodash';
@@ -8,10 +8,16 @@ import { diamondContractName, getConfig, getContractAddress } from './9999_utils
 
 const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const startTime = Date.now();
-  const diamond = await ethers.getContract(diamondContractName);
-  const diamonAddress = await diamond.getAddress();
-
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
   const chainId = await hre.getChainId();
+
+  const diamond = await ethers.getContractAt(
+    diamondContractName,
+    '0x0000000000300dd8B0230efcfEf136eCdF6ABCDE',
+    deployerSigner
+  );
+  const diamonAddress = await diamond.getAddress();
   const targetChainId = +process.env.DEPLOY_TARGET_CHAIN_ID!;
 
   console.log(`---------------------------------------------------------------------`);
@@ -22,11 +28,18 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   ///
   /// configure fees
   ///
-  const feeManager = await ethers.getContractAt('FeeManagerFacet', diamonAddress);
-  const celerFeeHub = await ethers.getContractAt('CelerFeeHubFacet', diamonAddress);
-  const feeDistributor = await ethers.getContractAt('FeeDistributorFacet', diamonAddress);
-  const accessControlEnumerable = await ethers.getContractAt('AccessControlEnumerableFacet', diamonAddress);
-  const relayerCeler = (await ethers.getContract('RelayerCeler')) as RelayerCeler;
+  const feeManager = await ethers.getContractAt('FeeManagerFacet', diamonAddress, deployerSigner);
+  const celerFeeHub = await ethers.getContractAt('CelerFeeHubFacet', diamonAddress, deployerSigner);
+  const feeDistributor = await ethers.getContractAt('FeeDistributorFacet', diamonAddress, deployerSigner);
+  const accessControlEnumerable = await ethers.getContractAt(
+    'AccessControlEnumerableFacet',
+    diamonAddress,
+    deployerSigner
+  );
+  const relayerCeler = (await ethers.getContractAt(
+    'RelayerCeler',
+    '0xC4daAb2243B91AC5280E9684FA5167211792183E'
+  )) as RelayerCeler;
   const marketingFeeId = keccak256(toUtf8Bytes('ERC20_MARKETING_FEE'));
   const rewardFeeId = keccak256(toUtf8Bytes('ERC20_REWARD_FEE'));
   const platformFeeId = keccak256(toUtf8Bytes('ERC20_PLATFORM_FEE'));
@@ -38,7 +51,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const platformAddress = result(contractsConfig, `${chainId}.platform`, ZeroAddress);
   const developerAddress = result(contractsConfig, `${chainId}.development`, ZeroAddress);
   const lbAddress = result(contractsConfig, `${chainId}.liquidityBacking`, ZeroAddress);
-  const diamonAddressTarget = getContractAddress('Diamond', process.env.DEPLOY_TARGET_NETWORK);
+  const diamonAddressTarget = getContractAddress(diamondContractName, process.env.DEPLOY_TARGET_NETWORK);
   const relayerCelerAddressTarget = getContractAddress('RelayerCeler', process.env.DEPLOY_TARGET_NETWORK);
 
   console.log(``);
@@ -124,7 +137,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await (
     await feeDistributor.addFeeDistributionReceiver({
       name: 'Liquidity Backing',
-      points: 30000,
+      points: 10000,
       account: lbAddress,
       swapPath: [],
     })
@@ -146,14 +159,14 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(``);
 
   console.log(`Add Actor ${relayerCelerAddressTarget} for chain id ${targetChainId} on home relayer`);
-  await (await relayerCeler.addActor(targetChainId, relayerCelerAddressTarget)).wait();
+  await (await relayerCeler.connect(deployerSigner).addActor(targetChainId, relayerCelerAddressTarget)).wait();
 
   console.log(``);
   console.log(`---------------------------------------------------------------------`);
   console.log(`IMPORTANT: After deploying to the target chain, you have to deploy the fee configurations`);
   console.log(`---------------------------------------------------------------------`);
   console.log(``);
-  console.log(`Finished after ${((Date.now() - startTime) / 1000).toPrecision(2)} seconds`);
+  console.log(`Finished after ${Math.floor((Date.now() - startTime) / 1000)} seconds`);
 };
 
 export default main;
