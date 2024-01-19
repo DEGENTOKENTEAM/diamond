@@ -46,7 +46,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     from: deployer,
     log: true,
     skipIfAlreadyDeployed: false,
-    args: [diamondAddress, relayerAddressHome, operator, messageBus, chainId, false],
+    args: [diamondAddress, relayerAddressHome, operator, messageBus, chainIdHome, false],
   });
   await updateDeploymentLogs('RelayerCeler', celerRelayerDeployResult, false);
   const celerRelayerContract = await ethers.getContractAt('RelayerCeler', celerRelayerDeployResult.address);

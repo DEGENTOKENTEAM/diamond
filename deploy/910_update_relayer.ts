@@ -7,7 +7,7 @@ import { expand as dotenvExpand } from 'dotenv-expand';
 import { Contract, ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
 import { ethers, network } from 'hardhat';
 import { result } from 'lodash';
-import { addOrReplaceFacets } from '../scripts/helpers/diamond';
+import { addOrReplaceFacets, replaceFacet } from '../scripts/helpers/diamond';
 import { diamondContractName, getConfig, getContractAddress, updateDeploymentLogs } from './9999_utils';
 const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
@@ -24,6 +24,7 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts } = hre;
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const celerConfig = getConfig('celer');
   const accountsConfig = getConfig('accounts');
@@ -36,6 +37,9 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const diamondAddress = await (await ethers.getContract(diamondContractName)).getAddress();
   const accessControlEnumerableFacet = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
+  const previousRelayerAddress = isHomeChain
+    ? relayerAddressHome
+    : getContractAddress('RelayerCeler', process.env.DEPLOY_TARGET_NETWORK);
 
   ///
   /// Relayer
@@ -69,7 +73,10 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   });
   await updateDeploymentLogs('CelerFeeHubFacet', celerFeeHubFacetDeployResult, false);
   const celerFeeHubFacetContract = (await ethers.getContract('CelerFeeHubFacet')) as Contract;
-  await addOrReplaceFacets([celerFeeHubFacetContract], diamondAddress);
+  console.log(``);
+  console.log(`Update facet...`);
+  await replaceFacet(celerFeeHubFacetContract, diamondAddress, ZeroAddress, '0x', deployer);
+  console.log(`...done`);
 
   ///
   /// Configure
@@ -83,28 +90,47 @@ const main: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log(``);
 
   if (isHomeChain) {
-    console.log(`IMPORTANT: update the relayer with the actors from the target chains`);
-
-    console.log(`Grant Relayer FEE_DISTRIBUTOR_PUSH_ROLE`);
+    console.log(`Revoke FEE_DISTRIBUTOR_PUSH_ROLE for previous Relayer ${previousRelayerAddress}`);
     await (
-      await accessControlEnumerableFacet.grantRole(
-        keccak256(toUtf8Bytes('FEE_DISTRIBUTOR_PUSH_ROLE')),
-        celerRelayerDeployResult.address
-      )
+      await accessControlEnumerableFacet
+        .connect(deployerSigner)
+        .revokeRole(keccak256(toUtf8Bytes('FEE_DISTRIBUTOR_PUSH_ROLE')), previousRelayerAddress)
     ).wait();
+    console.log(`...done`);
+    console.log(``);
+
+    console.log(`IMPORTANT: update the relayer with the actors from the target chains`);
+    console.log(``);
+
+    console.log(`Grant FEE_DISTRIBUTOR_PUSH_ROLE for Relayer ${celerRelayerDeployResult.address}`);
+    await (
+      await accessControlEnumerableFacet
+        .connect(deployerSigner)
+        .grantRole(keccak256(toUtf8Bytes('FEE_DISTRIBUTOR_PUSH_ROLE')), celerRelayerDeployResult.address)
+    ).wait();
+    console.log(`...done`);
     console.log(``);
   } else {
+    console.log(`Revoke FEE_STORE_MANAGER_ROLE for previous Relayer ${previousRelayerAddress}`);
+    await (
+      await accessControlEnumerableFacet
+        .connect(deployerSigner)
+        .revokeRole(keccak256(toUtf8Bytes('FEE_STORE_MANAGER_ROLE')), previousRelayerAddress)
+    ).wait();
+    console.log(`...done`);
+    console.log(``);
+
     console.log(`Grant Relayer FEE_STORE_MANAGER_ROLE`);
     await (
-      await accessControlEnumerableFacet.grantRole(
-        keccak256(toUtf8Bytes('FEE_STORE_MANAGER_ROLE')),
-        celerRelayerDeployResult.address
-      )
+      await accessControlEnumerableFacet
+        .connect(deployerSigner)
+        .grantRole(keccak256(toUtf8Bytes('FEE_STORE_MANAGER_ROLE')), celerRelayerDeployResult.address)
     ).wait();
+    console.log(`...done`);
     console.log(``);
 
     console.log(`Add actor ${relayerAddressHome} for chain id ${chainIdHome}`);
-    await (await celerRelayerContract.addActor(chainIdHome, relayerAddressHome)).wait();
+    await (await celerRelayerContract.connect(deployerSigner).addActor(chainIdHome, relayerAddressHome)).wait();
     console.log(``);
     console.log(`IMPORTANT: update the home relayer with this new relayer as an actor`);
     console.log(`IMPORTANT: update the relayer in the home celer fee hub`);

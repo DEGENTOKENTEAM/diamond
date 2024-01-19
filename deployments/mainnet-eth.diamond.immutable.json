@@ -48,6 +48,14 @@
       "0xa149C042b05B5F49353F6593d709EA6cACbEB48B": {
         "Name": "LaunchControl",
         "Version": "1.0.0"
+      },
+      "0x83cBCD2a68e8479d98a5bF173A8Fe124612F31E3": {
+        "Name": "RelayerCeler",
+        "Version": "1.0.0"
+      },
+      "0x547Bef01323896956Ea997AB42f4f77E296F879c": {
+        "Name": "CelerFeeHubFacet",
+        "Version": "1.0.0"
       }
     }
   }
