@@ -1,6 +1,6 @@
 import { Contract, Fragment, FunctionFragment, ZeroAddress } from 'ethers';
-import { ethers } from 'hardhat';
-import { IDiamondCut, IDiamondLoupe } from './../../typechain-types';
+import { deployments, ethers } from 'hardhat';
+import { IDiamondLoupe } from './../../typechain-types';
 
 const verbose = false;
 
@@ -85,6 +85,7 @@ export async function addFacets(
   initData = '0x',
   signer?: string
 ): Promise<void> {
+  const { log } = deployments;
   const cut = [];
   for (const f of facets) {
     const selectors = getSelectors(f);
@@ -97,17 +98,20 @@ export async function addFacets(
   }
 
   if (!cut.length) {
-    !verbose || console.log('No facets to add or replace.');
+    log('No facets to add or replace.');
     return;
   }
 
-  !verbose || console.log('Adding facet(s)...');
+  log('Adding facet(s)...');
+
   await doCut(diamondAddress, cut, initContract, initData, signer);
 
-  !verbose || console.log('Done.');
+  log('Done.');
 }
 
 export async function removeFacet(selectors: string[], diamondAddress: string, signer?: string): Promise<void> {
+  const { log } = deployments;
+
   const cut = [
     {
       facetAddress: ZeroAddress,
@@ -116,10 +120,11 @@ export async function removeFacet(selectors: string[], diamondAddress: string, s
     },
   ];
 
-  !verbose || console.log('Removing facet...');
+  log('Removing facet...');
+
   await doCut(diamondAddress, cut, ZeroAddress, '0x', signer);
 
-  !verbose || console.log('Done.');
+  log('Done.');
 }
 
 export async function replaceFacet(
@@ -152,14 +157,13 @@ async function doCut(
   initData: string,
   signer?: string
 ): Promise<void> {
-  const [defaultSigner] = await ethers.getSigners();
-  const cutter = <IDiamondCut>(
-    await ethers.getContractAt('IDiamondCut', diamondAddress, signer ? await ethers.getSigner(signer) : defaultSigner)
+  const cutter = await ethers.getContractAt(
+    'IDiamondCut',
+    diamondAddress,
+    signer ? await ethers.getSigner(signer) : (await ethers.getSigners())[0]
   );
   const tx = await cutter.diamondCut(cut, initContract, initData);
-  !verbose || console.log('Diamond cut tx: ', tx.hash);
+  deployments.log('Diamond cut tx: ', tx.hash);
   const receipt = await tx.wait();
-  if (!receipt?.status) {
-    throw Error(`Diamond upgrade failed: ${tx.hash}`);
-  }
+  if (!receipt?.status) throw Error(`Diamond upgrade failed: ${tx.hash}`);
 }

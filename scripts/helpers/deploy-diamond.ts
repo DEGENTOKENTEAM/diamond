@@ -72,7 +72,7 @@ export const deployFacet = async (
   const { deploy, log } = deployments;
   log(`Start deploying: ${facetName}`);
   const facet = await deploy(facetName, { from: deployer, args: !!deployParams ? deployParams : undefined });
-  const facetContract: Contract = await ethers.getContract(facetName);
+  const facetContract: Contract = await ethers.getContract(facetName, await ethers.getSigner(deployer));
   log(`Finished deploying: ${facetName} on ${facet.address}`);
   return { facet, facetContract };
 };
