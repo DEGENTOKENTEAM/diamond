@@ -4,7 +4,7 @@ import { BaseContract, ZeroAddress, parseEther } from 'ethers';
 import { deployments, ethers, getNamedAccounts } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
-import { RelayerCelerMock } from '../typechain-types';
+import { MinterBurnerMock, RelayerCelerMock } from '../typechain-types';
 import { FeeCurrency, FeeType } from './utils/enums';
 import { deployFixture as deployDiamondFixture } from './utils/helper';
 import {
@@ -259,9 +259,16 @@ describe('CelerFeeHubFacet', () => {
       });
 
       describe('sendFeesWithCeler', () => {
-        it('should execute deployFees on the Celer Relayer', async () => {
-          const [{ address: deployerAddress }, { address: bountyReceiver }] = await ethers.getSigners();
+        let minter: MinterBurnerMock;
+        let deployerAddress: string, bountyReceiver: string;
 
+        beforeEach(async () => {
+          [{ address: deployerAddress }, { address: bountyReceiver }] = await ethers.getSigners();
+          const { address } = await deployments.deploy('MinterBurnerMock', { from: deployerAddress });
+          minter = await ethers.getContractAt('MinterBurnerMock', address);
+        });
+
+        it('should execute deployFees on the Celer Relayer', async () => {
           const relayerCelerMock = (await ethers.getContract('RelayerCelerMock')) as RelayerCelerMock;
           const { facetContract: erc20FacetBaseContract } = await deployFacet('ERC20Facet');
           const { facetContract: feeStoreFacetBaseContract } = await deployFacet('FeeStoreFacetMock');
@@ -280,7 +287,8 @@ describe('CelerFeeHubFacet', () => {
             .withArgs(parseEther('1000'));
 
           // prepare mock
-          await (await erc20Facet.mint(diamondAddress, parseEther('6'))).wait();
+          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(),  parseEther('6'))
+          await minter.mint(diamondAddress, diamondAddress, parseEther('6'));
           await (
             await feeStoreFacet.prepareToSendFeesSETUP(
               [parseEther('2'), parseEther('4')],
@@ -334,7 +342,6 @@ describe('CelerFeeHubFacet', () => {
         });
 
         it('should execute deployFees on the Celer Relayer with exact fees', async () => {
-          const [{ address: deployerAddress }, { address: bountyReceiver }] = await ethers.getSigners();
           const { facetContract: erc20FacetBaseContract } = await deployFacet('ERC20Facet');
           const { facetContract: feeStoreFacetBaseContract } = await deployFacet('FeeStoreFacetMock');
           await addFacets([erc20FacetBaseContract, feeStoreFacetBaseContract], diamondAddress);
@@ -349,7 +356,8 @@ describe('CelerFeeHubFacet', () => {
           const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
 
           // prepare mock
-          await (await erc20Facet.mint(diamondAddress, parseEther('6'))).wait();
+          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(),  parseEther('6'))
+          await minter.mint(diamondAddress, diamondAddress, parseEther('6'));
           await (
             await feeStoreFacet.prepareToSendFeesSETUP(
               [parseEther('2'), parseEther('4')],
