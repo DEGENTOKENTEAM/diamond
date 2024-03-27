@@ -1,12 +1,13 @@
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
-import { Contract, MaxInt256, ZeroAddress, parseEther } from 'ethers';
-import { deployments, ethers, getNamedAccounts } from 'hardhat';
+import { BaseContract, Contract, MaxInt256, ZeroAddress, parseEther } from 'ethers';
+import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { isEqual } from 'lodash';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
 import {
   DepositableMock,
+  DiamondLoupeFacet,
   ERC20Mock,
   FeeDistributorFacet,
   FeeManagerFacet,
@@ -30,9 +31,11 @@ import {
 
 const deployFixture = async () => {
   const { diamond, diamondAddress } = await deployDiamondFixture();
-  const { deployer } = await getNamedAccounts();
-  const [, lp] = await ethers.getSigners();
   const { deploy } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
+  const [, , lp] = await ethers.getSigners();
+
   const { address: erc20Address } = await deploy('ERC20MockA', { from: deployer, contract: 'ERC20Mock' });
   const { address: baseTokenAddress } = await deploy('ERC20MockB', { from: deployer, contract: 'ERC20Mock' });
   const { address: nativeWrapperAddress } = await deploy('NativeWrapperMock', { from: deployer });
@@ -40,22 +43,36 @@ const deployFixture = async () => {
     from: deployer,
     args: [lp.address, nativeWrapperAddress],
   });
-  const { facetContract: facetAContract } = await deployFacet('FeeDistributorFacet');
-  const { facetContract: facetBContract } = await deployFacet('FeeManagerFacet');
-  await addFacets([facetAContract, facetBContract], diamondAddress);
+
+  {
+    const { address, newlyDeployed } = await deploy('FeeDistributorFacet', { from: deployer });
+    const facet = await ethers.getContractAt('FeeDistributorFacet', address, deployerSigner);
+    newlyDeployed && addFacets([facet as unknown as Contract], diamondAddress, undefined, undefined, deployer);
+  }
+  {
+    const { address, newlyDeployed } = await deploy('FeeManagerFacet', { from: deployer });
+    const facet = await ethers.getContractAt('FeeManagerFacet', address, deployerSigner);
+    newlyDeployed && addFacets([facet as unknown as Contract], diamondAddress, undefined, undefined, deployer);
+  }
+
   return {
+    deployer,
+    deployerSigner,
     diamond,
     diamondAddress,
-    erc20: (await ethers.getContractAt('ERC20Mock', erc20Address)) as ERC20Mock,
+    erc20: (await ethers.getContractAt('ERC20Mock', erc20Address, deployerSigner)) as ERC20Mock,
     erc20Address,
-    baseToken: (await ethers.getContractAt('ERC20Mock', baseTokenAddress)) as ERC20Mock,
+    baseToken: (await ethers.getContractAt('ERC20Mock', baseTokenAddress, deployerSigner)) as ERC20Mock,
     baseTokenAddress,
-    nativeWrapper: (await ethers.getContractAt('NativeWrapperMock', nativeWrapperAddress)) as NativeWrapperMock,
+    nativeWrapper: (await ethers.getContractAt(
+      'NativeWrapperMock',
+      nativeWrapperAddress,
+      deployerSigner
+    )) as NativeWrapperMock,
     nativeWrapperAddress,
-    router: (await ethers.getContractAt('SwapRouterMock', routerAddress)) as SwapRouterMock,
+    router: (await ethers.getContractAt('SwapRouterMock', routerAddress, deployerSigner)) as SwapRouterMock,
     routerAddress,
     lp,
-    lpAddress: lp.address,
   };
 };
 
@@ -71,49 +88,47 @@ describe('FeeDistributorFacet', () => {
   let router: SwapRouterMock;
   let routerAddress: string;
   let lp: SignerWithAddress;
-  let lpAddress: string;
+  let deployer: string;
+  let deployerSigner: SignerWithAddress;
+  let diamondLoupeFacet: DiamondLoupeFacet;
+  let feeDistributorFacet: FeeDistributorFacet;
+  let snapshotId: any;
+
   const BOUNTY_SHARE = 10000;
 
   beforeEach(async () => {
-    const {
-      diamond: _diamond,
-      diamondAddress: _diamondAddress,
-      erc20: _erc20,
-      erc20Address: _erc20Address,
-      baseToken: _baseToken,
-      baseTokenAddress: _baseTokenAddress,
-      nativeWrapper: _nativeWrapper,
-      nativeWrapperAddress: _nativeWrapperAddress,
-      router: _router,
-      routerAddress: _routerAddress,
-      lp: _lp,
-      lpAddress: _lpAddress,
-    } = await deployFixture();
-    diamond = _diamond;
-    diamondAddress = _diamondAddress;
-    erc20 = _erc20;
-    erc20Address = _erc20Address;
-    baseToken = _baseToken;
-    baseTokenAddress = _baseTokenAddress;
-    nativeWrapper = _nativeWrapper;
-    nativeWrapperAddress = _nativeWrapperAddress;
-    router = _router;
-    routerAddress = _routerAddress;
-    lp = _lp;
-    lpAddress = _lpAddress;
+    ({
+      deployer,
+      deployerSigner,
+      diamond,
+      diamondAddress,
+      erc20,
+      erc20Address,
+      baseToken,
+      baseTokenAddress,
+      nativeWrapper,
+      nativeWrapperAddress,
+      router,
+      routerAddress,
+      lp,
+    } = await deployFixture());
+
+    diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress, deployerSigner);
+    feeDistributorFacet = await ethers.getContractAt('FeeDistributorFacet', diamondAddress, deployerSigner);
+    snapshotId = await network.provider.send('evm_snapshot');
+  });
+
+  afterEach(async function () {
+    await network.provider.send('evm_revert', [snapshotId]);
   });
 
   it('should be deployed successfully', async () => {
-    const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress);
-    const feeDistributorFacet = await ethers.getContractAt('FeeDistributorFacet', diamondAddress);
-    await (
-      await feeDistributorFacet.initFeeDistributorFacet(
-        baseTokenAddress,
-        nativeWrapperAddress,
-        routerAddress,
-        BOUNTY_SHARE
-      )
-    ).wait();
+    await feeDistributorFacet.initFeeDistributorFacet(
+      baseTokenAddress,
+      nativeWrapperAddress,
+      routerAddress,
+      BOUNTY_SHARE
+    );
     expect(await diamond.waitForDeployment()).to.be.instanceOf(Contract);
     expect((await diamondLoupeFacet.facets()).length).to.eq(4);
     expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
@@ -125,22 +140,18 @@ describe('FeeDistributorFacet', () => {
   });
 
   describe('Post Initialization', () => {
-    let feeDistributorFacet: FeeDistributorFacet;
     beforeEach(async () => {
-      feeDistributorFacet = await ethers.getContractAt('FeeDistributorFacet', diamondAddress);
-      await (
-        await feeDistributorFacet.initFeeDistributorFacet(
-          baseTokenAddress,
-          nativeWrapperAddress,
-          routerAddress,
-          BOUNTY_SHARE
-        )
-      ).wait();
+      await feeDistributorFacet.initFeeDistributorFacet(
+        baseTokenAddress,
+        nativeWrapperAddress,
+        routerAddress,
+        BOUNTY_SHARE
+      );
     });
 
     describe('Admin', () => {
       it('should be able to start the distribution', async () => {
-        const [, otherSigner] = await ethers.getSigners();
+        const [, , otherSigner] = await ethers.getSigners();
         await expect(feeDistributorFacet.connect(otherSigner).startFeeDistribution()).to.be.revertedWith(
           accessControlError(await otherSigner.getAddress(), FEE_DISTRIBUTOR_MANAGER)
         );
@@ -148,19 +159,19 @@ describe('FeeDistributorFacet', () => {
           feeDistributorFacet,
           'FailedStartMissingShares'
         );
-        await (await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(ZeroAddress))).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(ZeroAddress));
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
         await expect(feeDistributorFacet.startFeeDistribution()).to.emit(feeDistributorFacet, 'DistributionStarted');
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.true;
       });
 
       it('should be able to stop the distribution', async () => {
-        const [, otherSigner] = await ethers.getSigners();
+        const [, , otherSigner] = await ethers.getSigners();
         await expect(feeDistributorFacet.connect(otherSigner).startFeeDistribution()).to.be.revertedWith(
           accessControlError(await otherSigner.getAddress(), FEE_DISTRIBUTOR_MANAGER)
         );
-        await (await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(ZeroAddress))).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(ZeroAddress));
+        await feeDistributorFacet.startFeeDistribution();
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.true;
         await expect(feeDistributorFacet.stopFeeDistribution()).to.emit(feeDistributorFacet, 'DistributionStopped');
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
@@ -182,7 +193,7 @@ describe('FeeDistributorFacet', () => {
         receiver1Address = a1;
         receiver2Address = a2;
         receiver3Address = a3;
-        [, otherSigner] = await ethers.getSigners();
+        [, , otherSigner] = await ethers.getSigners();
       });
 
       it('should add a named receiver', async () => {
@@ -190,7 +201,7 @@ describe('FeeDistributorFacet', () => {
           feeDistributorFacet.connect(otherSigner).addFeeDistributionReceiver(addReceiverParams(receiver1Address))
         ).to.be.revertedWith(accessControlError(await otherSigner.getAddress(), FEE_DISTRIBUTOR_MANAGER));
 
-        await (await router.setGetAmountsOutSuccess(false)).wait();
+        await router.setGetAmountsOutSuccess(false);
 
         await expect(
           feeDistributorFacet.addFeeDistributionReceiver(
@@ -198,7 +209,7 @@ describe('FeeDistributorFacet', () => {
           )
         ).to.be.reverted;
 
-        await (await router.setGetAmountsOutSuccess(true)).wait();
+        await router.setGetAmountsOutSuccess(true);
 
         await expect(
           feeDistributorFacet.addFeeDistributionReceiver(
@@ -206,11 +217,9 @@ describe('FeeDistributorFacet', () => {
           )
         ).to.emit(feeDistributorFacet, 'ReceiverAdded');
 
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver1Address, '', 22222, [ZeroAddress, ZeroAddress])
-          )
-        ).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver1Address, '', 22222, [ZeroAddress, ZeroAddress])
+        );
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(32222);
       });
@@ -226,8 +235,8 @@ describe('FeeDistributorFacet', () => {
 
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
 
-        await (await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address))).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address));
+        await feeDistributorFacet.startFeeDistribution();
 
         await expect(feeDistributorFacet.removeFeeDistributionReceiver(receiver1Address))
           .to.emit(feeDistributorFacet, 'ReceiverRemoved')
@@ -236,8 +245,8 @@ describe('FeeDistributorFacet', () => {
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(0);
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
 
-        await (await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address))).wait();
-        await (await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver2Address))).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address));
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver2Address));
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(20000);
         expect(await feeDistributorFacet.isFeeDistributorRunning()).to.be.false;
@@ -262,26 +271,15 @@ describe('FeeDistributorFacet', () => {
           feeDistributorFacet.updateFeeDistributionShares([receiver1Address], [40000])
         ).to.be.revertedWithCustomError(feeDistributorFacet, 'MissingData');
 
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver1Address, receiverName1, 10000)
-          )
-        ).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address, receiverName1, 10000));
 
         await expect(feeDistributorFacet.updateFeeDistributionShares([receiver2Address], [40000]))
           .to.be.revertedWithCustomError(feeDistributorFacet, 'ReceiverNotExisting')
           .withArgs(receiver2Address);
 
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver2Address, receiverName2, 40000)
-          )
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver3Address, receiverName3, 70000)
-          )
-        ).wait();
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver2Address, receiverName2, 40000));
+
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver3Address, receiverName3, 70000));
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(120000);
 
@@ -308,13 +306,11 @@ describe('FeeDistributorFacet', () => {
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(30000);
 
-        await (await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address)).wait();
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(20000);
 
-        await (
-          await feeDistributorFacet.updateFeeDistributionShares([receiver1Address, receiver3Address], [20000n, 100000n])
-        ).wait();
+        await feeDistributorFacet.updateFeeDistributionShares([receiver1Address, receiver3Address], [20000n, 100000n]);
 
         expect(await feeDistributorFacet.getFeeDistributorTotalPoints()).to.eq(120000);
       });
@@ -322,21 +318,18 @@ describe('FeeDistributorFacet', () => {
       it('should provide a list of named receivers', async () => {
         const path1 = ethers.Wallet.createRandom().address;
         const path2 = ethers.Wallet.createRandom().address;
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver1Address, receiverName1, 10000, [path1, path2])
-          )
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver2Address, receiverName2, 20000, [path2, path1])
-          )
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver3Address, receiverName3, 30000, [])
-          )
-        ).wait();
+
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver1Address, receiverName1, 10000, [path1, path2])
+        );
+
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver2Address, receiverName2, 20000, [path2, path1])
+        );
+
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver3Address, receiverName3, 30000, [])
+        );
 
         expect(await feeDistributorFacet.getFeeDistributorReceivers()).to.deep.eq([
           [receiverName1, 10000n, receiver1Address, [path1, path2]],
@@ -354,7 +347,7 @@ describe('FeeDistributorFacet', () => {
       });
 
       it('should disable the bounty', async () => {
-        await (await feeDistributorFacet.enableFeeDistributorBounty()).wait();
+        await feeDistributorFacet.enableFeeDistributorBounty();
         await expect(feeDistributorFacet.disableFeeDistributorBounty()).to.emit(feeDistributorFacet, 'BountyDisabled');
         expect(await feeDistributorFacet.isFeeDistributorBountyActive()).to.be.false;
       });
@@ -390,67 +383,54 @@ describe('FeeDistributorFacet', () => {
       let receiver2Address: string;
 
       beforeEach(async () => {
-        [, otherSigner, eoaReceiver] = await ethers.getSigners();
-        const { deployer } = await getNamedAccounts();
+        [, , otherSigner, eoaReceiver] = await ethers.getSigners();
         const { deploy } = deployments;
+        const { deployer } = await getNamedAccounts();
+        const deployerSigner = await ethers.getSigner(deployer);
 
-        feeManagerFacet = await ethers.getContractAt('FeeManagerFacet', diamondAddress);
-
-        const { address: _receiver1Address } = await deploy('DepositableMockA', {
+        ({ address: receiver1Address } = await deploy('DepositableMockA', {
           from: deployer,
           contract: 'DepositableMock',
-        });
-        receiver1 = await ethers.getContract('DepositableMockA');
-        receiver1Address = _receiver1Address;
+        }));
 
-        const { address: _receiver2Address } = await deploy('DepositableMockB', {
+        ({ address: receiver2Address } = await deploy('DepositableMockB', {
           from: deployer,
           contract: 'DepositableMock',
-        });
-        receiver2 = await ethers.getContract('DepositableMockB');
-        receiver2Address = _receiver2Address;
+        }));
 
-        await (
-          await feeManagerFacet.addFeeConfig({
-            id: feeId,
-            fee: 100,
-            receiver: ZeroAddress,
-            ftype: FeeType.Default,
-            currency: FeeCurrency.Native,
-          })
-        ).wait();
-        await (
-          await feeManagerFacet.addFeeConfig({
-            id: feeIdOther,
-            fee: 100,
-            receiver: DEAD_ADDRESS,
-            ftype: FeeType.Default,
-            currency: FeeCurrency.Native,
-          })
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver1Address, receiverName1, 40000)
-          )
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver2Address, receiverName2, 40000)
-          )
-        ).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(eoaReceiver.address, receiverName3, 20000)
-          )
-        ).wait();
+        receiver1 = await ethers.getContractAt('DepositableMock', receiver1Address, deployerSigner);
+        receiver2 = await ethers.getContractAt('DepositableMock', receiver2Address, deployerSigner);
+        feeManagerFacet = await ethers.getContractAt('FeeManagerFacet', diamondAddress, deployerSigner);
+
+        await feeManagerFacet.addFeeConfig({
+          id: feeId,
+          fee: 100,
+          receiver: ZeroAddress,
+          ftype: FeeType.Default,
+          currency: FeeCurrency.Native,
+        });
+
+        await feeManagerFacet.addFeeConfig({
+          id: feeIdOther,
+          fee: 100,
+          receiver: DEAD_ADDRESS,
+          ftype: FeeType.Default,
+          currency: FeeCurrency.Native,
+        });
+
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address, receiverName1, 40000));
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver2Address, receiverName2, 40000));
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(eoaReceiver.address, receiverName3, 20000)
+        );
 
         // prepare LP
-        await (await nativeWrapper.deposit({ value: parseEther('10') })).wait();
-        await (await nativeWrapper.connect(lp).approve(routerAddress, MaxInt256)).wait();
-        await (await baseToken.connect(lp).approve(routerAddress, MaxInt256)).wait();
-        await (await baseToken.transfer(diamondAddress, parseEther('4'))).wait();
-        await (await nativeWrapper.transfer(lpAddress, parseEther('10'))).wait();
-        await (await baseToken.transfer(lpAddress, parseEther('10'))).wait();
+        await nativeWrapper.deposit({ value: parseEther('10') });
+        await nativeWrapper.connect(lp).approve(routerAddress, MaxInt256);
+        await baseToken.connect(lp).approve(routerAddress, MaxInt256);
+        await baseToken.transfer(diamondAddress, parseEther('4'));
+        await nativeWrapper.transfer(lp.address, parseEther('10'));
+        await baseToken.transfer(lp.address, parseEther('10'));
       });
 
       it('should be done when fees are getting pushed', async () => {
@@ -480,8 +460,8 @@ describe('FeeDistributorFacet', () => {
           feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), dtoMock)
         ).to.be.revertedWithCustomError(feeDistributorFacet, 'MissingData');
 
-        await (await baseToken.transfer(diamondAddress, parseEther('2'))).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await baseToken.transfer(diamondAddress, parseEther('2'));
+        await feeDistributorFacet.startFeeDistribution();
 
         const tx = await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
           fees: [
@@ -516,6 +496,7 @@ describe('FeeDistributorFacet', () => {
           [receiver1Address, receiver2Address],
           [399999999999900000n, 399999999999900000n]
         );
+
         await expect(tx).to.changeEtherBalances(
           [eoaReceiver.address, DEAD_ADDRESS, deployer],
           [199999999999950000n, 999999999999750000n, 500000n]
@@ -523,9 +504,9 @@ describe('FeeDistributorFacet', () => {
       });
 
       it('should pay bounties in native when fees are getting pushed and distributed', async () => {
-        await (await baseToken.transfer(diamondAddress, parseEther('2'))).wait();
-        await (await feeDistributorFacet.enableFeeDistributorBounty()).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await baseToken.transfer(diamondAddress, parseEther('2'));
+        await feeDistributorFacet.enableFeeDistributorBounty();
+        await feeDistributorFacet.startFeeDistribution();
 
         const bountyWallet = ethers.Wallet.createRandom();
         const tx = feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
@@ -575,10 +556,10 @@ describe('FeeDistributorFacet', () => {
       });
 
       it('should pay bounties in token when fees are getting pushed and distributed', async () => {
-        await (await baseToken.transfer(diamondAddress, parseEther('2'))).wait();
-        await (await feeDistributorFacet.enableFeeDistributorBounty()).wait();
-        await (await feeDistributorFacet.enableBountyInToken(true)).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await baseToken.transfer(diamondAddress, parseEther('2'));
+        await feeDistributorFacet.enableFeeDistributorBounty();
+        await feeDistributorFacet.enableBountyInToken(true);
+        await feeDistributorFacet.startFeeDistribution();
 
         const bountyWallet = ethers.Wallet.createRandom();
         await expect(
@@ -601,30 +582,29 @@ describe('FeeDistributorFacet', () => {
 
       it('should not pay bounties when share is set to 0', async () => {
         const bountyWallet = ethers.Wallet.createRandom();
-        await (await feeDistributorFacet.enableFeeDistributorBounty()).wait();
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await feeDistributorFacet.enableFeeDistributorBounty();
+        await feeDistributorFacet.startFeeDistribution();
 
-        await (await baseToken.transfer(diamondAddress, parseEther('2'))).wait();
-        await (
-          await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
-            fees: [
-              {
-                id: feeId,
-                amount: parseEther('2'),
-              },
-              {
-                id: feeIdOther,
-                amount: parseEther('2'),
-              },
-            ],
-            bountyReceiver: bountyWallet.address,
-            totalFees: parseEther('4'),
-          })
-        ).wait();
+        await baseToken.transfer(diamondAddress, parseEther('2'));
 
-        await (await feeDistributorFacet.setFeeDistributorBountyShare(0)).wait();
+        await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
+          fees: [
+            {
+              id: feeId,
+              amount: parseEther('2'),
+            },
+            {
+              id: feeIdOther,
+              amount: parseEther('2'),
+            },
+          ],
+          bountyReceiver: bountyWallet.address,
+          totalFees: parseEther('4'),
+        });
 
-        await (await baseToken.transfer(diamondAddress, parseEther('2'))).wait();
+        await feeDistributorFacet.setFeeDistributorBountyShare(0);
+
+        await baseToken.transfer(diamondAddress, parseEther('2'));
         const tx = await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
           fees: [
             {
@@ -674,7 +654,7 @@ describe('FeeDistributorFacet', () => {
       });
 
       it('should be initiated after distribution was stopped', async () => {
-        await (await baseToken.transfer(diamondAddress, parseEther('3'))).wait();
+        await baseToken.transfer(diamondAddress, parseEther('3'));
         await expect(
           feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
             fees: [
@@ -695,18 +675,16 @@ describe('FeeDistributorFacet', () => {
           .to.emit(feeDistributorFacet, 'TriggerDistributionWhileNotRunning')
           .to.emit(feeDistributorFacet, 'TriggerDistributionWhileNotRunning');
 
-        await (
-          await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('1'), {
-            fees: [
-              {
-                id: feeId,
-                amount: parseEther('2'),
-              },
-            ],
-            bountyReceiver: ZeroAddress,
-            totalFees: parseEther('2'),
-          })
-        ).wait();
+        await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('1'), {
+          fees: [
+            {
+              id: feeId,
+              amount: parseEther('2'),
+            },
+          ],
+          bountyReceiver: ZeroAddress,
+          totalFees: parseEther('2'),
+        });
 
         expect(await feeDistributorFacet.getFeeDistributorQueue()).to.have.a.lengthOf(2);
 
@@ -741,8 +719,8 @@ describe('FeeDistributorFacet', () => {
       });
 
       it("should not distribute when there are no shares available, instead start queue'ing", async () => {
-        await (await feeDistributorFacet.removeFeeDistributionReceiver(receiver1Address)).wait();
-        await (await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address)).wait();
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver1Address);
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
         await expect(
           feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), {
             fees: [
@@ -763,20 +741,19 @@ describe('FeeDistributorFacet', () => {
       });
 
       it('should swap to a different token if a receiver expects this', async () => {
-        await (await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address)).wait();
-        await (
-          await feeDistributorFacet.addFeeDistributionReceiver(
-            addReceiverParams(receiver2Address, receiverName2, 120000, [nativeWrapperAddress, erc20Address])
-          )
-        ).wait();
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
+
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver2Address, receiverName2, 120000, [nativeWrapperAddress, erc20Address])
+        );
 
         // prepare LP
-        await (await erc20.transfer(lpAddress, parseEther('10'))).wait();
-        await (await erc20.connect(lp).approve(routerAddress, MaxInt256)).wait();
+        await erc20.transfer(lp.address, parseEther('10'));
+        await erc20.connect(lp).approve(routerAddress, MaxInt256);
 
-        await (await feeDistributorFacet.startFeeDistribution()).wait();
+        await feeDistributorFacet.startFeeDistribution();
 
-        await (await baseToken.transfer(diamondAddress, parseEther('4'))).wait();
+        await baseToken.transfer(diamondAddress, parseEther('4'));
         const tx = await feeDistributorFacet.pushFees(baseTokenAddress, parseEther('4'), {
           fees: [
             {

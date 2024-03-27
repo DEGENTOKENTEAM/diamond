@@ -1,68 +1,52 @@
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
+import { mine, setBalance, time } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ZeroAddress, parseEther, toBeHex } from 'ethers';
-import { deployments, ethers, getNamedAccounts } from 'hardhat';
-import { deployFacet } from '../scripts/helpers/deploy-diamond';
-import { addFacets } from '../scripts/helpers/diamond';
-import { AccessControlEnumerableFacet, DegenATM, ERC20Facet } from '../typechain-types';
-import { deployFixture as deployDiamondFixture } from './utils/helper';
-import { ADMIN_ROLE, MINTER_ROLE } from './utils/mocks';
-
-// load env config
-import { mine, setBalance, time } from '@nomicfoundation/hardhat-network-helpers';
-import * as dotenv from 'dotenv';
-import { expand as dotenvExpand } from 'dotenv-expand';
+import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { ZERO_ADDR } from '../providers/celer-contracts/test/lib/constants';
-const dotEnvConfig = dotenv.config();
-dotenvExpand(dotEnvConfig);
+import { DegenATM, ERC20Mock } from '../typechain-types';
 
 const deployFixture = async () => {
+  let atm: DegenATM;
+  let erc20: ERC20Mock;
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
-  // deploy diamond
-  const { diamondAddress } = await deployDiamondFixture();
+  setBalance(deployer, parseEther('1000'));
 
-  // deploy launcher
-  const { address } = await deploy('DegenATM', { from: deployer, skipIfAlreadyDeployed: false });
-  const atm = await ethers.getContractAt('DegenATM', address);
+  {
+    const { address } = await deploy('DegenATM', { from: deployer, skipIfAlreadyDeployed: false });
+    atm = await ethers.getContractAt('DegenATM', address, deployerSigner);
+  }
 
-  const { facetContract: token } = await deployFacet('ERC20Facet');
-  const { facetContract: access } = await deployFacet('AccessControlEnumerableFacet');
-  await addFacets([token, access], diamondAddress);
-
-  const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
-  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
-  const launchAddress = await atm.getAddress();
-
-  // init & configure
-  await (await erc20Facet.initERC20Facet('A', 'B', 18)).wait();
-  await (await accessControl.grantRole(MINTER_ROLE, launchAddress)).wait();
-  await (await accessControl.grantRole(ADMIN_ROLE, launchAddress)).wait();
+  {
+    const { address } = await deploy('ERC20Mock', { from: deployer, skipIfAlreadyDeployed: false });
+    erc20 = await ethers.getContractAt('ERC20Mock', address, deployerSigner);
+  }
 
   return {
-    diamondAddress,
-    launchAddress,
     deployer,
+    deployerSigner,
     atm,
-    erc20Facet,
-    accessControl,
+    erc20,
   };
 };
 
 describe('Degen ATM', function () {
-  let deployer: string, diamondAddress: string, launchAddress: string;
   let atm: DegenATM;
-  let erc20Facet: ERC20Facet;
-  let accessControl: AccessControlEnumerableFacet;
+  let erc20: ERC20Mock;
+  let deployer: string;
+  let deployerSigner: SignerWithAddress;
+  let snapshotId: any;
 
   beforeEach(async function () {
-    const data = await deployFixture();
-    atm = data.atm;
-    deployer = data.deployer;
-    erc20Facet = data.erc20Facet;
-    accessControl = data.accessControl;
-    launchAddress = data.launchAddress;
-    diamondAddress = data.diamondAddress;
+    ({ atm, erc20, deployer, deployerSigner } = await deployFixture());
+    snapshotId = await network.provider.send('evm_snapshot');
+  });
+
+  afterEach(async function () {
+    await network.provider.send('evm_revert', [snapshotId]);
   });
 
   describe('Deployment', function () {
@@ -74,38 +58,38 @@ describe('Degen ATM', function () {
 
   describe('Configuration', function () {
     it('should set a token', async function () {
-      await (await atm.setToken(deployer)).wait();
+      await atm.setToken(deployer);
       expect(await atm.token()).to.eq(deployer);
     });
 
     it('should set an allocation rate for pre investors to claim', async function () {
-      await (await atm.setAllocationRate(123)).wait();
+      await atm.setAllocationRate(123);
       expect(await atm.tokensPerOneNative()).to.eq(123);
     });
 
     it('should set an allocation limit for pre investors to deposit', async function () {
-      await (await atm.setAllocationLimit(123)).wait();
+      await atm.setAllocationLimit(123);
       expect(await atm.allocationLimit()).to.eq(123);
     });
   });
 
   describe('Whitelist', function () {
     it('should add an address', async function () {
-      await (await atm.addToWhitelist(deployer)).wait();
+      await atm.addToWhitelist(deployer);
       expect(await atm.whitelist(deployer)).to.be.true;
     });
 
     it('should add multiple addresses at once', async function () {
       const addresses = [ethers.Wallet.createRandom().address, ethers.Wallet.createRandom().address];
-      await (await atm.addToWhitelistInBulk(addresses)).wait();
+      await atm.addToWhitelistInBulk(addresses);
       expect(await atm.whitelist(addresses[0])).to.be.true;
       expect(await atm.whitelist(addresses[1])).to.be.true;
       expect(await atm.whitelist(deployer)).to.be.false;
     });
 
     it('should remove an address', async function () {
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.removeFromWhitelist(deployer)).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.removeFromWhitelist(deployer);
       expect(await atm.whitelist(deployer)).to.be.false;
     });
   });
@@ -113,9 +97,9 @@ describe('Degen ATM', function () {
   describe('Pre-Launch Actions', function () {
     it('should deposit native tokens', async function () {
       await expect(atm.deposit({ value: parseEther('1') })).to.be.revertedWith('not started');
-      await (await atm.enableCollecting(true)).wait();
+      await atm.enableCollecting(true);
       await expect(atm.deposit({ value: parseEther('1') })).to.be.revertedWith('not whitelisted');
-      await (await atm.addToWhitelist(deployer)).wait();
+      await atm.addToWhitelist(deployer);
       await expect(atm.deposit({ value: parseEther('1') })).to.changeEtherBalances(
         [deployer, await atm.getAddress()],
         [parseEther('-1'), parseEther('1')]
@@ -124,16 +108,15 @@ describe('Degen ATM', function () {
     });
 
     it('should deposit native tokens doing a transfer', async function () {
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      const [deployerSigner] = await ethers.getSigners();
-      await (await deployerSigner.sendTransaction({ to: await atm.getAddress(), value: parseEther('1') })).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
+      await deployerSigner.sendTransaction({ to: await atm.getAddress(), value: parseEther('1') });
       expect(await atm.deposits(deployer)).to.eq(parseEther('1'));
     });
 
     it('should deposit too much native tokens and reach max', async function () {
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
       await expect(atm.deposit({ value: parseEther('3.3') })).to.changeEtherBalances(
         [deployer, await atm.getAddress()],
         [parseEther('-3'), parseEther('3')]
@@ -142,9 +125,9 @@ describe('Degen ATM', function () {
     });
 
     it('should return the funds if someone is removed from the whitelist', async () => {
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('1') })).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('1') });
       await expect(atm.removeFromWhitelist(deployer)).to.changeEtherBalances(
         [await atm.getAddress(), deployer],
         [parseEther('-1'), parseEther('1')]
@@ -154,67 +137,65 @@ describe('Degen ATM', function () {
 
   describe('Post-Launch Actions', function () {
     it('should claim tokens', async function () {
-      const [, wlNoDeposit, noWl] = await ethers.getSigners();
+      const [, , wlNoDeposit, noWl] = await ethers.getSigners();
       const atmAddress = await atm.getAddress();
 
       // prepare
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('29'))).wait();
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.addToWhitelist(wlNoDeposit.address)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('1.5') })).wait();
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('29'));
+      await atm.addToWhitelist(deployer);
+      await atm.addToWhitelist(wlNoDeposit.address);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('1.5') });
 
       await expect(atm.claimTokens()).to.be.revertedWith('not started');
 
       await expect(atm.enableClaiming(true)).to.be.rejectedWith('no rate set');
 
-      await (await atm.setAllocationRate(parseEther('20'))).wait();
+      await atm.setAllocationRate(parseEther('20'));
       await expect(atm.enableClaiming(true)).to.emit(atm, 'ClaimingEnabled');
 
       await expect(atm.connect(noWl).claimTokens()).to.be.revertedWith('not whitelisted');
       await expect(atm.connect(wlNoDeposit).claimTokens()).to.be.revertedWith('not deposited');
-      await expect(atm.claimTokens()).to.be.revertedWithCustomError(erc20Facet, 'ERC20Base__TransferExceedsBalance');
+      await expect(atm.claimTokens()).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
-      await (await erc20Facet.mint(atmAddress, parseEther('1'))).wait();
+      await erc20.mint(atmAddress, parseEther('1'));
 
       const claimTx = await atm.claimTokens();
       await expect(claimTx).to.emit(atm, 'Claimed').withArgs(deployer, parseEther('30')); // 1.5 * 20
       await expect(claimTx).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [atmAddress, deployer],
         [parseEther('-30'), parseEther('30')]
       );
 
-      await expect(atm.setToken(diamondAddress)).to.be.revertedWith('claiming already started');
+      await expect(atm.setToken(await erc20.getAddress())).to.be.revertedWith('claiming already started');
       await expect(atm.claimTokens()).to.be.revertedWith('already claimed');
       await expect(atm.enableClaiming(false)).to.emit(atm, 'ClaimingDisabled');
       await expect(atm.enableCollecting(false)).to.emit(atm, 'CollectingDisabled');
     });
 
     it('should join locking', async () => {
-      const [, wlNoDeposit, noWl, wlDepositAndClaim] = await ethers.getSigners();
+      const [, , wlNoDeposit, noWl, wlDepositAndClaim] = await ethers.getSigners();
       const atmAddress = await atm.getAddress();
 
       // prepare
       await setBalance(wlDepositAndClaim.address, parseEther('100'));
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('90'))).wait();
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.addToWhitelist(wlNoDeposit.address)).wait();
-      await (await atm.addToWhitelist(wlDepositAndClaim.address)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('1.5') })).wait();
-      await (await atm.connect(wlDepositAndClaim).deposit({ value: parseEther('3') })).wait();
-      await (await atm.setAllocationRate(parseEther('20'))).wait();
-      await (await atm.enableCollecting(false)).wait();
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('90'));
+      await atm.addToWhitelist(deployer);
+      await atm.addToWhitelist(wlNoDeposit.address);
+      await atm.addToWhitelist(wlDepositAndClaim.address);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('1.5') });
+      await atm.connect(wlDepositAndClaim).deposit({ value: parseEther('3') });
+      await atm.setAllocationRate(parseEther('20'));
+      await atm.enableCollecting(false);
 
       await expect(atm.lockJoin()).to.be.revertedWith('not started');
 
-      await (await atm.enableClaiming(true)).wait();
-      await (await atm.connect(wlDepositAndClaim).claimTokens()).wait();
+      await atm.enableClaiming(true);
+      await atm.connect(wlDepositAndClaim).claimTokens();
 
       await expect(atm.connect(noWl).lockJoin()).to.be.revertedWith('not whitelisted');
       await expect(atm.connect(wlNoDeposit).lockJoin()).to.be.revertedWith('not deposited');
@@ -227,33 +208,28 @@ describe('Degen ATM', function () {
     });
 
     it('should leave locking before lock period starts', async () => {
-      const [, noLock, wlDepositAndClaim] = await ethers.getSigners();
+      const [, , noLock, wlDepositAndClaim] = await ethers.getSigners();
       const atmAddress = await atm.getAddress();
 
       // prepare
       await setBalance(wlDepositAndClaim.address, parseEther('10'));
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('90'))).wait();
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.addToWhitelist(wlDepositAndClaim.address)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('1.5') })).wait();
-      await (await atm.connect(wlDepositAndClaim).deposit({ value: parseEther('1.5') })).wait();
-      await (await atm.setAllocationRate(parseEther('20'))).wait();
-      await (await atm.enableCollecting(false)).wait();
-      await (await atm.enableClaiming(true)).wait();
-      await (await atm.connect(wlDepositAndClaim).claimTokens()).wait();
-      await (await atm.lockJoin()).wait();
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('90'));
+      await atm.addToWhitelist(deployer);
+      await atm.addToWhitelist(wlDepositAndClaim.address);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('1.5') });
+      await atm.connect(wlDepositAndClaim).deposit({ value: parseEther('1.5') });
+      await atm.setAllocationRate(parseEther('20'));
+      await atm.enableCollecting(false);
+      await atm.enableClaiming(true);
+      await atm.connect(wlDepositAndClaim).claimTokens();
+      await atm.lockJoin();
 
       await expect(atm.connect(noLock).lockLeave()).to.be.revertedWith('not locked');
       const tx = atm.lockLeave();
       await expect(tx).to.emit(atm, 'LockLeave').withArgs(deployer, parseEther('30'), 0, 0);
-      await expect(tx).to.changeTokenBalances(
-        erc20Facet,
-        [atmAddress, deployer],
-        [parseEther('-30'), parseEther('30')]
-      );
+      await expect(tx).to.changeTokenBalances(erc20, [atmAddress, deployer], [parseEther('-30'), parseEther('30')]);
       await expect(atm.lockJoin()).to.be.revertedWith('already claimed');
       await expect(atm.lockLeave()).to.be.revertedWith('not locked');
       await expect(atm.connect(wlDepositAndClaim).lockJoin()).to.be.revertedWith('already claimed');
@@ -264,7 +240,7 @@ describe('Degen ATM', function () {
     });
 
     it('should leave locking after lock period starts', async () => {
-      const [lockerA, lockerB] = await ethers.getSigners();
+      const [, , lockerA, lockerB] = await ethers.getSigners();
       const atmAddress = await atm.getAddress();
 
       const initialStats = [false, false, false, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
@@ -273,34 +249,33 @@ describe('Degen ATM', function () {
       expect(await atm.getStatsForQualifier(lockerB.address)).to.deep.eq([...initialStats]);
 
       // prepare
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('8000'))).wait();
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('8000'));
 
-      await (await atm.addToWhitelist(lockerA.address)).wait();
-      await (await atm.addToWhitelist(lockerB.address)).wait();
+      await atm.addToWhitelist(lockerA.address);
+      await atm.addToWhitelist(lockerB.address);
       initialStats[0] = true;
       expect(await atm.getStatsForQualifier(lockerA.address)).to.deep.eq([...initialStats]);
       expect(await atm.getStatsForQualifier(lockerB.address)).to.deep.eq([...initialStats]);
 
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.connect(lockerA).deposit({ value: parseEther('3') })).wait();
-      await (await atm.connect(lockerB).deposit({ value: parseEther('3') })).wait();
+      await atm.enableCollecting(true);
+      await atm.connect(lockerA).deposit({ value: parseEther('3') });
+      await atm.connect(lockerB).deposit({ value: parseEther('3') });
       initialStats[6] = 3000000000000000000n;
       expect(await atm.getStatsForQualifier(lockerA.address)).to.deep.eq([...initialStats]);
       expect(await atm.getStatsForQualifier(lockerB.address)).to.deep.eq([...initialStats]);
 
-      await (await atm.setAllocationRate(parseEther('1000'))).wait();
+      await atm.setAllocationRate(parseEther('1000'));
       initialStats[10] = 720000000000000000000n;
       initialStats[11] = 3720000000000000000000n;
       expect(await atm.getStatsForQualifier(lockerA.address)).to.deep.eq([...initialStats]);
       expect(await atm.getStatsForQualifier(lockerB.address)).to.deep.eq([...initialStats]);
 
-      await (await atm.enableCollecting(false)).wait();
+      await atm.enableCollecting(false);
       await expect(atm.startLockPeriod()).to.be.revertedWith('not started');
-      await (await atm.enableClaiming(true)).wait();
-      await (await atm.connect(lockerA).lockJoin()).wait();
-      await (await atm.connect(lockerB).lockJoin()).wait();
+      await atm.enableClaiming(true);
+      await atm.connect(lockerA).lockJoin();
+      await atm.connect(lockerB).lockJoin();
       initialStats[2] = true;
       initialStats[4] = 3000000000000000000000n;
       expect(await atm.getStatsForQualifier(lockerA.address)).to.deep.eq([...initialStats]);
@@ -348,7 +323,7 @@ describe('Degen ATM', function () {
               parseEther('138.082207762557077625')
             );
           await expect(txB).to.changeTokenBalances(
-            erc20Facet,
+            erc20,
             [atmAddress, lockerB.address],
             [parseEther('-3059.178089041095890411'), parseEther('3059.178089041095890411')]
           );
@@ -361,7 +336,7 @@ describe('Degen ATM', function () {
       const txA = atm.connect(lockerA).lockLeave();
       await expect(txA).to.emit(atm, 'LockLeave').withArgs(lockerA.address, parseEther('3720'), parseEther('720'), 0);
       await expect(txA).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [atmAddress, lockerA.address],
         [parseEther('-3720'), parseEther('3720')]
       );
@@ -371,23 +346,22 @@ describe('Degen ATM', function () {
       const atmAddress = await atm.getAddress();
 
       // prepare
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('3000'))).wait();
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('3') })).wait();
-      await (await atm.setAllocationRate(parseEther('1000'))).wait();
-      await (await atm.enableCollecting(false)).wait();
-      await (await atm.enableClaiming(true)).wait();
-      await (await atm.startLockPeriod()).wait();
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('3000'));
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('3') });
+      await atm.setAllocationRate(parseEther('1000'));
+      await atm.enableCollecting(false);
+      await atm.enableClaiming(true);
+      await atm.startLockPeriod();
 
       await expect(atm.lockJoin()).to.be.revertedWith('lock not possible anymore');
 
       const claimTx = await atm.claimTokens();
       await expect(claimTx).to.emit(atm, 'Claimed').withArgs(deployer, parseEther('3000'));
       await expect(claimTx).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [atmAddress, deployer],
         [parseEther('-3000'), parseEther('3000')]
       );
@@ -395,7 +369,7 @@ describe('Degen ATM', function () {
 
     it('should return statistics', async () => {
       const atmAddress = await atm.getAddress();
-      const [, nolock] = await ethers.getSigners();
+      const [, , nolock] = await ethers.getSigners();
       await setBalance(nolock.address, parseEther('10'));
 
       const initialData = [
@@ -422,52 +396,51 @@ describe('Degen ATM', function () {
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
       // prepare
-      await (await atm.setToken(diamondAddress)).wait();
-      initialData[3] = diamondAddress;
+      await atm.setToken(await erc20.getAddress());
+      initialData[3] = await erc20.getAddress();
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('6000'))).wait();
+      await erc20.mint(atmAddress, parseEther('6000'));
       initialData[4] = 6000000000000000000000n;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.addToWhitelist(nolock.address)).wait();
-      await (await atm.enableCollecting(true)).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.addToWhitelist(nolock.address);
+      await atm.enableCollecting(true);
       initialData[0] = true;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.connect(nolock).deposit({ value: parseEther('2') })).wait();
-      await (await atm.deposit({ value: parseEther('3') })).wait();
+      await atm.connect(nolock).deposit({ value: parseEther('2') });
+      await atm.deposit({ value: parseEther('3') });
       initialData[7] = 5000000000000000000n;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.setAllocationRate(parseEther('1000'))).wait();
+      await atm.setAllocationRate(parseEther('1000'));
       initialData[6] = 1000000000000000000000n;
       initialData[12] = 5000000000000000000000n;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.enableCollecting(false)).wait();
+      await atm.enableCollecting(false);
       initialData[0] = false;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.enableClaiming(true)).wait();
+      await atm.enableClaiming(true);
       initialData[1] = true;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.lockJoin()).wait();
+      await atm.lockJoin();
       initialData[8] = 3000000000000000000000n;
       initialData[10] = 720000000000000000000n;
       initialData[11] = 3720000000000000000000n;
       initialData[12] = 5720000000000000000000n;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.connect(nolock).claimTokens()).wait();
+      await atm.connect(nolock).claimTokens();
       initialData[4] = 4000000000000000000000n;
       initialData[9] = 2000000000000000000000n;
       expect(await atm.getStats()).to.deep.eq([...initialData]);
 
-      await (await atm.startLockPeriod()).wait();
+      await atm.startLockPeriod();
       const startTimestamp = await atm.startTimestamp();
       const lockPeriod = await atm.LOCK_PERIOD();
       initialData[2] = true;
@@ -482,32 +455,35 @@ describe('Degen ATM', function () {
       const atmAddress = await atm.getAddress();
 
       // prepare
-      const tokenAddress = await erc20Facet.getAddress();
-      await (await atm.setToken(diamondAddress)).wait();
-      await (await erc20Facet.enable()).wait();
-      await (await erc20Facet.mint(atmAddress, parseEther('10'))).wait();
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('10') })).wait();
+      const tokenAddress = await erc20.getAddress();
+
+      await atm.recoverNative();
+      await atm.recoverTokens(tokenAddress);
+
+      await atm.setToken(await erc20.getAddress());
+      await erc20.mint(atmAddress, parseEther('10'));
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('10') });
 
       await expect(atm.recoverNative()).to.changeEtherBalances(
         [atmAddress, deployer],
         [parseEther('-3'), parseEther('3')]
       );
       await expect(atm.recoverTokens(tokenAddress)).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [atmAddress, deployer],
         [parseEther('-10'), parseEther('10')]
       );
     });
 
     it('should remove an address from whitelist and transfer funds back', async function () {
-      await (await atm.addToWhitelist(deployer)).wait();
-      await (await atm.enableCollecting(true)).wait();
-      await (await atm.deposit({ value: parseEther('1') })).wait();
+      await atm.addToWhitelist(deployer);
+      await atm.enableCollecting(true);
+      await atm.deposit({ value: parseEther('1') });
       expect(await atm.totalDeposits()).to.eq(parseEther('1'));
       const tx = await atm.removeFromWhitelist(deployer);
-      await expect(tx).to.changeEtherBalances([launchAddress, deployer], [parseEther('-1'), parseEther('1')]);
+      await expect(tx).to.changeEtherBalances([await atm.getAddress(), deployer], [parseEther('-1'), parseEther('1')]);
       expect(await atm.totalDeposits()).to.eq(0);
       expect(await atm.deposits(deployer)).to.eq(0);
       expect(await atm.whitelist(deployer)).to.be.false;
