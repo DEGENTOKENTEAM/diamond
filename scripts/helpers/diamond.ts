@@ -153,10 +153,10 @@ async function doCut(
   signer?: string
 ): Promise<void> {
   const [defaultSigner] = await ethers.getSigners();
-  const connectWith = signer ? await ethers.getSigner(signer) : defaultSigner;
-  const cutter = <IDiamondCut>await ethers.getContractAt('IDiamondCut', diamondAddress);
-
-  const tx = await cutter.connect(connectWith).diamondCut(cut, initContract, initData);
+  const cutter = <IDiamondCut>(
+    await ethers.getContractAt('IDiamondCut', diamondAddress, signer ? await ethers.getSigner(signer) : defaultSigner)
+  );
+  const tx = await cutter.diamondCut(cut, initContract, initData);
   !verbose || console.log('Diamond cut tx: ', tx.hash);
   const receipt = await tx.wait();
   if (!receipt?.status) {
