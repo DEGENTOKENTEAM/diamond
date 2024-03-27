@@ -13,6 +13,8 @@ const deployFixture = async () => {
   const { deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
 
+  setBalance(deployer, parseEther('1000'));
+
   {
     const { address } = await deploy('DegenATM', { from: deployer, skipIfAlreadyDeployed: false });
     atm = await ethers.getContractAt('DegenATM', address, deployerSigner);
@@ -454,6 +456,10 @@ describe('Degen ATM', function () {
 
       // prepare
       const tokenAddress = await erc20.getAddress();
+
+      await atm.recoverNative();
+      await atm.recoverTokens(tokenAddress);
+
       await atm.setToken(await erc20.getAddress());
       await erc20.mint(atmAddress, parseEther('10'));
       await atm.addToWhitelist(deployer);
