@@ -1,10 +1,10 @@
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { AbiCoder, Contract, ZeroAddress, ZeroHash, keccak256, parseEther, toUtf8Bytes } from 'ethers';
-import { deployments, ethers, getNamedAccounts } from 'hardhat';
+import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
-import { ERC20Facet, ERC20Mock, FeeStoreFacet, FeeStoreTestingDummyFacet } from '../typechain-types';
+import { ERC20Mock, FeeStoreFacet, FeeStoreTestingDummyFacet } from '../typechain-types';
 import { FeeStoreConfigStruct } from '../typechain-types/contracts/diamond/facets/FeeStoreFacet';
 import { accessControlError, deployFixture as deployDiamondFixture } from './utils/helper';
 import {
@@ -20,37 +20,58 @@ import {
 } from './utils/mocks';
 
 const deployFixture = async () => {
-  const { diamond, diamondAddress } = await deployDiamondFixture();
+  let erc20: ERC20Mock;
+  const { diamondAddress } = await deployDiamondFixture();
   const { deployer } = await getNamedAccounts();
-  const { facetContract: feeStoreFacetBaseContract } = await deployFacet('FeeStoreFacet');
-  const { facetContract: erc20FacetBaseContract } = await deployFacet('ERC20Facet');
-  await addFacets([erc20FacetBaseContract, feeStoreFacetBaseContract], diamondAddress);
-  const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
-  await (await erc20Facet.initERC20Facet('A', 'B', 18)).wait();
-  await (await erc20Facet.enable()).wait();
-  await (await erc20Facet.mint(deployer, parseEther('1000'))).wait();
+  const { deploy } = deployments;
+  const deployerSigner = await ethers.getSigner(deployer);
+
+  await addFacets([(await deployFacet('FeeStoreFacet')).facetContract], diamondAddress, undefined, undefined, deployer);
+  const feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress, deployerSigner);
+
+  {
+    const { address } = await deploy('ERC20Mock', { from: deployer });
+    erc20 = await ethers.getContractAt('ERC20Mock', address, deployerSigner);
+  }
+
+  await erc20.mint(deployer, parseEther('1000'));
+
   return {
-    diamond,
+    deployer,
+    deployerSigner,
     diamondAddress,
-    erc20Facet: erc20Facet,
+    feeStoreFacet,
+    erc20,
   };
 };
 
 describe('FeeStoreFacet', () => {
+  let deployer: string,
+    diamondAddress: string,
+    deployerSigner: SignerWithAddress,
+    feeStoreFacet: FeeStoreFacet,
+    erc20: ERC20Mock;
+
+  let snapshotId: any;
+
+  beforeEach(async () => {
+    ({ deployer, diamondAddress, deployerSigner, feeStoreFacet, erc20 } = await deployFixture());
+    snapshotId = await network.provider.send('evm_snapshot');
+  });
+
+  afterEach(async function () {
+    await network.provider.send('evm_revert', [snapshotId]);
+  });
+
   describe('Deployment', () => {
     it('should deploy successfully', async () => {
-      const { diamondAddress } = await deployFixture();
-      const diamond = await ethers.getContractAt('Diamond', diamondAddress);
-      const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress);
-      expect(await diamond.waitForDeployment()).to.be.instanceOf(Contract);
-      expect((await diamondLoupeFacet.facets()).length).to.eq(4);
+      const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress, deployerSigner);
+      expect((await diamondLoupeFacet.facets()).length).to.eq(3);
     });
   });
 
   describe('Sync FeeConfig', () => {
     it('should add a config based on a sync data transfer object', async () => {
-      const { diamondAddress } = await deployFixture();
-      const feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
       await expect(feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: ZeroHash }]))
         .to.revertedWithCustomError(feeStoreFacet, 'InvalidFee')
         .withArgs(ZeroHash);
@@ -68,15 +89,11 @@ describe('FeeStoreFacet', () => {
     });
 
     it('should add a config based on a message', async () => {
-      const { diamondAddress } = await deployFixture();
-      const [deployer] = await ethers.getSigners();
-      const feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
-
       await expect(
-        deployer.sendTransaction({
+        deployerSigner.sendTransaction({
           data: feeDeployerMessageAdd,
           to: diamondAddress,
-          from: deployer.address,
+          from: deployerSigner.address,
         })
       )
         .to.emit(feeStoreFacet, 'FeeConfigAdded')
@@ -89,27 +106,22 @@ describe('FeeStoreFacet', () => {
     });
 
     it('should update a config based on a sync data transfer object', async () => {
-      const { diamondAddress } = await deployFixture();
-      const feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
       await expect(feeStoreFacet.syncFees([feeConfigSyncUpdateDTORaw]))
         .to.revertedWithCustomError(feeStoreFacet, 'FeeNotExisting')
         .withArgs(feeConfigSyncUpdateDTORaw.id);
-      await (await feeStoreFacet.syncFees([feeConfigSyncAddDTORaw])).wait();
+      await feeStoreFacet.syncFees([feeConfigSyncAddDTORaw]);
       await expect(feeStoreFacet.syncFees([feeConfigSyncUpdateDTORaw]))
         .to.emit(feeStoreFacet, 'FeeConfigUpdated')
         .withArgs(feeConfigSyncUpdateDTORaw.id);
     });
 
     it('should delete a config based on a sync data transfer object', async () => {
-      const { diamondAddress } = await deployFixture();
-      const feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
       await expect(feeStoreFacet.syncFees([feeConfigSyncDeleteDTORaw]))
         .to.revertedWithCustomError(feeStoreFacet, 'FeeNotExisting')
         .withArgs(feeConfigSyncDeleteDTORaw.id);
-      await (
-        await feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: keccak256(toUtf8Bytes('otherfee')) }])
-      ).wait(); // add another fee first, so else branch gets tested
-      await (await feeStoreFacet.syncFees([feeConfigSyncAddDTORaw])).wait();
+
+      await feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: keccak256(toUtf8Bytes('otherfee')) }]); // add another fee first, so else branch gets tested
+      await feeStoreFacet.syncFees([feeConfigSyncAddDTORaw]);
       await expect(feeStoreFacet.syncFees([feeConfigSyncDeleteDTORaw]))
         .to.emit(feeStoreFacet, 'FeeConfigDeleted')
         .withArgs(feeConfigSyncDeleteDTORaw.id);
@@ -118,40 +130,22 @@ describe('FeeStoreFacet', () => {
 
   describe('Charge Fees', () => {
     let chargeFeeFacet: FeeStoreTestingDummyFacet;
-    let feeStoreFacet: FeeStoreFacet;
-    let erc20Facet: ERC20Facet;
-    let diamondAddress: string, deployer: string;
 
     beforeEach(async () => {
-      const { diamondAddress: _diamondAddress, erc20Facet: _erc20Facet } = await deployFixture();
-      diamondAddress = _diamondAddress;
-      erc20Facet = _erc20Facet;
+      const { facetContract } = await deployFacet('FeeStoreTestingDummyFacet');
+      await addFacets([facetContract], diamondAddress, undefined, undefined, deployer);
 
-      const { deployer: _deployer } = await getNamedAccounts();
-      deployer = _deployer;
+      chargeFeeFacet = await ethers.getContractAt('FeeStoreTestingDummyFacet', diamondAddress, deployerSigner);
 
-      const { deploy } = deployments;
-
-      await deploy('FeeStoreTestingDummyFacet', { from: deployer });
-      const facetContract = (await ethers.getContract('FeeStoreTestingDummyFacet')) as Contract;
-      await addFacets([facetContract], diamondAddress);
-
-      feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
-      chargeFeeFacet = await ethers.getContractAt('FeeStoreTestingDummyFacet', diamondAddress);
-
-      // add a config to the fee config store
-      const [deployerSigner] = await ethers.getSigners();
-      await (
-        await deployerSigner.sendTransaction({
-          data: feeDeployerMessageAdd,
-          to: diamondAddress,
-          from: deployer,
-        })
-      ).wait();
+      await deployerSigner.sendTransaction({
+        data: feeDeployerMessageAdd,
+        to: diamondAddress,
+        from: deployer,
+      });
     });
 
     it('should prepare fees internally so it can be sent through provider specific fee hub', async () => {
-      await (await feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: feeIdOther }])).wait(); // add other fee to add some else cases
+      await feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: feeIdOther }]); // add other fee to add some else cases
       await expect(chargeFeeFacet.prepareToSendFeesTest()).to.be.revertedWithCustomError(feeStoreFacet, 'ZeroFees');
       const inputAmount = parseEther('1');
       const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(
@@ -159,8 +153,8 @@ describe('FeeStoreFacet', () => {
         diamondAddress,
         inputAmount
       );
-      await (await erc20Facet.mint(await feeStoreFacet.getAddress(), expectedOutputAmount)).wait();
-      await (await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount)).wait();
+      await erc20.mint(await feeStoreFacet.getAddress(), expectedOutputAmount);
+      await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
       expect(await feeStoreFacet.getCollectedFeesTotal()).to.eq(expectedOutputAmount);
       expect(await feeStoreFacet.getCollectedFeesByConfigId(feeConfigSyncAddDTORaw.id)).to.eq(expectedOutputAmount);
       const tx = await chargeFeeFacet.prepareToSendFeesTest();
@@ -181,11 +175,10 @@ describe('FeeStoreFacet', () => {
         diamondAddress,
         inputAmount
       );
-      await (await erc20Facet.mint(diamondAddress, expectedOutputAmount)).wait();
-      await (await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount)).wait();
+      await erc20.mint(diamondAddress, expectedOutputAmount);
+      await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
 
       // remove fee tx
-      const [deployerSigner] = await ethers.getSigners();
       await expect(
         deployerSigner.sendTransaction({
           data: feeDeployerMessageRemove,
@@ -206,23 +199,21 @@ describe('FeeStoreFacet', () => {
         diamondAddress,
         inputAmount
       );
-      await (await erc20Facet.mint(diamondAddress, expectedOutputAmount)).wait();
-      await (await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount)).wait();
+      await erc20.mint(diamondAddress, expectedOutputAmount);
+      await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
 
-      const [deployerSigner] = await ethers.getSigners();
-      await (
-        await deployerSigner.sendTransaction({
-          data: feeDeployerMessageRemove,
-          to: diamondAddress,
-        })
-      ).wait();
+      await deployerSigner.sendTransaction({
+        data: feeDeployerMessageRemove,
+        to: diamondAddress,
+      });
       await expect(chargeFeeFacet.prepareToSendFeesTest())
         .to.emit(feeStoreFacet, 'FeeConfigDeleted')
         .withArgs(feeConfigSyncAddDTORaw.id);
     });
 
     it('should be enable the manager to collect the fees', async () => {
-      const [, otherSigner] = await ethers.getSigners();
+      const [, , otherSigner] = await ethers.getSigners();
+
       await expect(feeStoreFacet.connect(otherSigner).collectFeesFromFeeStore()).to.be.revertedWith(
         accessControlError(otherSigner.address, FEE_STORE_MANAGER_ROLE)
       );
@@ -232,14 +223,14 @@ describe('FeeStoreFacet', () => {
         diamondAddress,
         inputAmount
       );
-      await (await erc20Facet.mint(diamondAddress, expectedOutputAmount)).wait();
-      await (await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount)).wait();
+      await erc20.mint(diamondAddress, expectedOutputAmount);
+      await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
       await expect(feeStoreFacet.collectFeesFromFeeStore()).to.be.revertedWithCustomError(feeStoreFacet, 'AddressZero');
-      await (await feeStoreFacet.initFeeStoreFacet(otherSigner.address, diamondAddress)).wait();
+      await feeStoreFacet.initFeeStoreFacet(otherSigner.address, await erc20.getAddress());
       const tx = await feeStoreFacet.collectFeesFromFeeStore();
       await expect(tx).to.emit(feeStoreFacet, 'FeesCollected');
       await expect(tx).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [diamondAddress, otherSigner.address],
         [parseEther('-0.001'), parseEther('0.001')]
       );
@@ -247,11 +238,9 @@ describe('FeeStoreFacet', () => {
 
     it('should check if absolute calculation is being done properly', async () => {
       const inputAmount = parseEther('1');
-      expect(await chargeFeeFacet.calcFeesAbsolute(feeConfigSyncAddDTORaw.id, diamondAddress, inputAmount)).to.deep.eq([
-        parseEther('0.99'),
-        parseEther('0.01'),
-        100n,
-      ]);
+      expect(
+        await chargeFeeFacet.calcFeesAbsolute(feeConfigSyncAddDTORaw.id, await erc20.getAddress(), inputAmount)
+      ).to.deep.eq([parseEther('0.99'), parseEther('0.01'), 100n]);
     });
 
     it('should fail on certain conditions', async () => {
@@ -270,18 +259,20 @@ describe('FeeStoreFacet', () => {
     it('should return all fee config ids', async () => {
       const fee1 = keccak256(toUtf8Bytes('fee1'));
       const fee2 = keccak256(toUtf8Bytes('fee2'));
-      await (
-        await feeStoreFacet.syncFees([
-          { ...feeConfigSyncAddDTORaw, id: fee1 },
-          { ...feeConfigSyncAddDTORaw, id: fee2 },
-        ])
-      ).wait();
+
+      await feeStoreFacet.syncFees([
+        { ...feeConfigSyncAddDTORaw, id: fee1 },
+        { ...feeConfigSyncAddDTORaw, id: fee2 },
+      ]);
       expect(await feeStoreFacet.getFeeConfigIds()).to.deep.eq([feeId, fee1, fee2]);
     });
 
     it('should be initialized successfully', async () => {
-      await expect(feeStoreFacet.initFeeStoreFacet(deployer, diamondAddress)).to.emit(feeStoreFacet, 'Initialized');
-      await expect(feeStoreFacet.initFeeStoreFacet(deployer, diamondAddress)).to.be.revertedWithCustomError(
+      await expect(feeStoreFacet.initFeeStoreFacet(deployer, await erc20.getAddress())).to.emit(
+        feeStoreFacet,
+        'Initialized'
+      );
+      await expect(feeStoreFacet.initFeeStoreFacet(deployer, await erc20.getAddress())).to.be.revertedWithCustomError(
         feeStoreFacet,
         'AlreadyInitialized'
       );
@@ -290,7 +281,7 @@ describe('FeeStoreFacet', () => {
 
     it('should change operator', async () => {
       const [, , newOperator] = await ethers.getSigners();
-      await (await feeStoreFacet.initFeeStoreFacet(deployer, diamondAddress)).wait();
+      await feeStoreFacet.initFeeStoreFacet(deployer, diamondAddress);
       await expect(feeStoreFacet.connect(newOperator).setOperator(newOperator.address)).to.be.rejectedWith(
         accessControlError(newOperator.address, DEPLOYER_ROLE)
       );
@@ -300,7 +291,7 @@ describe('FeeStoreFacet', () => {
     });
 
     it('should change intermediate asset', async () => {
-      await (await feeStoreFacet.initFeeStoreFacet(deployer, diamondAddress)).wait();
+      await feeStoreFacet.initFeeStoreFacet(deployer, await erc20.getAddress());
       await expect(feeStoreFacet.setIntermediateAsset(ZeroAddress)).to.be.revertedWithCustomError(
         feeStoreFacet,
         'AddressZero'
@@ -310,13 +301,10 @@ describe('FeeStoreFacet', () => {
     });
 
     it('should deposit a fee based on its fee id manually', async () => {
-      const [, otherSigner] = await ethers.getSigners();
-      const { deployer } = await getNamedAccounts();
-      const { deploy } = deployments;
-      const { address } = await deploy('ERC20Mock', { from: deployer });
-      await (await feeStoreFacet.initFeeStoreFacet(deployer, address)).wait();
+      const [, , otherSigner] = await ethers.getSigners();
+      const erc20Address = await erc20.getAddress();
+      await feeStoreFacet.initFeeStoreFacet(deployer, erc20Address);
 
-      const erc20 = (await ethers.getContract('ERC20Mock')) as ERC20Mock;
       await expect(feeStoreFacet.connect(otherSigner).feeStoreDepositFeeAmount(ZeroHash, 0)).to.be.revertedWith(
         accessControlError(otherSigner.address, FEE_STORE_MANAGER_ROLE)
       );
@@ -326,10 +314,9 @@ describe('FeeStoreFacet', () => {
       const amountToDeposit = parseEther('123');
       const amountToWithdraw = parseEther('-123');
 
-      await (await erc20.approve(diamondAddress, amountToDeposit)).wait();
-
+      await erc20.approve(diamondAddress, amountToDeposit);
       const tx = feeStoreFacet.feeStoreDepositFeeAmount(feeId, amountToDeposit);
-      await expect(tx).to.emit(feeStoreFacet, 'FeeAmountDeposited').withArgs(address, feeId, amountToDeposit);
+      await expect(tx).to.emit(feeStoreFacet, 'FeeAmountDeposited').withArgs(erc20Address, feeId, amountToDeposit);
       await expect(tx).to.changeTokenBalances(erc20, [diamondAddress, deployer], [amountToDeposit, amountToWithdraw]);
 
       expect(await feeStoreFacet.getCollectedFeesByConfigId(feeId)).to.eq(amountToDeposit);
@@ -337,35 +324,20 @@ describe('FeeStoreFacet', () => {
   });
 
   describe('Restore Fees', () => {
-    let feeStoreFacet: FeeStoreFacet;
-    let erc20Facet: ERC20Facet;
-    let diamondAddress: string, deployer: string;
     let operator: SignerWithAddress;
 
     beforeEach(async () => {
-      const { diamondAddress: _diamondAddress, erc20Facet: _erc20Facet } = await deployFixture();
-      diamondAddress = _diamondAddress;
-      erc20Facet = _erc20Facet;
-
-      const { deployer: _deployer } = await getNamedAccounts();
-      deployer = _deployer;
-
-      [, operator] = await ethers.getSigners();
-
-      feeStoreFacet = await ethers.getContractAt('FeeStoreFacet', diamondAddress);
-      await (await feeStoreFacet.initFeeStoreFacet(operator.address, diamondAddress)).wait();
-
-      await (
-        await feeStoreFacet.syncFees([
-          { ...feeConfigSyncAddDTORaw, id: feeId },
-          { ...feeConfigSyncAddDTORaw, id: feeIdOther },
-        ])
-      ).wait();
+      [, , operator] = await ethers.getSigners();
+      await feeStoreFacet.initFeeStoreFacet(operator.address, await erc20.getAddress());
+      await feeStoreFacet.syncFees([
+        { ...feeConfigSyncAddDTORaw, id: feeId },
+        { ...feeConfigSyncAddDTORaw, id: feeIdOther },
+      ]);
     });
 
     it('should restore fees', async () => {
-      await (await erc20Facet.approve(diamondAddress, parseEther('3'))).wait();
-      await (await erc20Facet.disable()).wait();
+      await erc20.approve(diamondAddress, parseEther('3'));
+      await erc20.disable();
 
       const restoreDto = {
         totalFees: parseEther('3'),
@@ -377,17 +349,16 @@ describe('FeeStoreFacet', () => {
         ],
       };
 
-      await expect(feeStoreFacet.restoreFeesFromSendFees(restoreDto)).to.be.revertedWithCustomError(
-        erc20Facet,
-        'Pausable__Paused'
+      await expect(feeStoreFacet.restoreFeesFromSendFees(restoreDto)).to.be.revertedWith(
+        'ERC20Pausable: token transfer while paused'
       );
 
-      await (await erc20Facet.enable()).wait();
+      await erc20.enable();
 
       const tx = await feeStoreFacet.restoreFeesFromSendFees(restoreDto);
       await expect(tx).to.emit(feeStoreFacet, 'FeesRestored');
       await expect(tx).to.changeTokenBalances(
-        erc20Facet,
+        erc20,
         [deployer, diamondAddress, operator.address],
         [parseEther('-3'), parseEther('2'), parseEther('1')]
       );
