@@ -1,10 +1,17 @@
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
-import { BaseContract, ZeroAddress, parseEther } from 'ethers';
-import { deployments, ethers, getNamedAccounts } from 'hardhat';
+import { Contract, ZeroAddress, parseEther } from 'ethers';
+import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
-import { MinterBurnerMock, RelayerCelerMock } from '../typechain-types';
+import {
+  CelerFeeHubFacet,
+  FeeManagerFacet,
+  MessageBusMock,
+  MinterBurnerMock,
+  RelayerCelerMock,
+} from '../typechain-types';
 import { FeeCurrency, FeeType } from './utils/enums';
 import { deployFixture as deployDiamondFixture } from './utils/helper';
 import {
@@ -23,52 +30,100 @@ import {
 } from './utils/mocks';
 
 const deployFixture = async () => {
-  const { deployer } = await getNamedAccounts();
-  const { deploy } = deployments;
-  await setBalance(deployer, parseEther('2'));
-  const messageBusMock = await deploy('MessageBusMock', { from: deployer });
-  const messageBus = await ethers.getContract('MessageBusMock');
   const { diamond, diamondAddress } = await deployDiamondFixture();
-  const { facetContract } = await deployFacet('FeeManagerFacet');
-  await addFacets([facetContract], diamondAddress);
+  const { deploy } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
+  await setBalance(deployer, parseEther('2'));
+
+  let messageBus: MessageBusMock;
+  let feeManagerFacet: FeeManagerFacet;
+  let celerFeeHubFacet: CelerFeeHubFacet;
+  let relayerCelerMock: RelayerCelerMock;
+
+  {
+    const { address } = await deploy('MessageBusMock', { from: deployer });
+    messageBus = await ethers.getContractAt('MessageBusMock', address, deployerSigner);
+  }
+
+  {
+    const { facetContract } = await deployFacet('FeeManagerFacet');
+    await addFacets([facetContract], diamondAddress, undefined, undefined, deployer);
+    feeManagerFacet = await ethers.getContractAt('FeeManagerFacet', diamondAddress, deployerSigner);
+  }
+
+  {
+    const { address } = await deploy('RelayerCelerMock', { from: deployer });
+    relayerCelerMock = await ethers.getContractAt('RelayerCelerMock', address, deployerSigner);
+
+    const { facetContract } = await deployFacet('CelerFeeHubFacet', [await relayerCelerMock.getAddress()]);
+    await addFacets([facetContract], diamondAddress, undefined, undefined, deployer);
+    celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress, deployerSigner);
+  }
+
   return {
     diamond,
     diamondAddress,
+    deployer,
+    deployerSigner,
     messageBus,
-    messageBusAddress: messageBusMock.address,
+    messageBusAddress: await messageBus.getAddress(),
+    feeManagerFacet,
+    feeManagerFacetAddress: await feeManagerFacet.getAddress(),
+    celerFeeHubFacet,
+    celerFeeHubFacetAddress: await celerFeeHubFacet.getAddress(),
+    relayerCelerMock,
+    relayerCelerMockAddress: await relayerCelerMock.getAddress(),
   };
 };
 
 describe('CelerFeeHubFacet', () => {
+  let diamond: Contract;
+  let diamondAddress: string;
+  let deployer: string;
+  let deployerSigner: SignerWithAddress;
+  let messageBus: MessageBusMock;
+  let messageBusAddress: string;
+  let feeManagerFacet: FeeManagerFacet;
+  let feeManagerFacetAddress: string;
+  let celerFeeHubFacet: CelerFeeHubFacet;
+  let celerFeeHubFacetAddress: string;
+  let relayerCelerMock: RelayerCelerMock;
+  let relayerCelerMockAddress: string;
+
+  let snapshotId: any;
+
+  beforeEach(async () => {
+    ({
+      diamond,
+      diamondAddress,
+      deployer,
+      deployerSigner,
+      messageBus,
+      messageBusAddress,
+      feeManagerFacet,
+      feeManagerFacetAddress,
+      celerFeeHubFacet,
+      celerFeeHubFacetAddress,
+      relayerCelerMock,
+      relayerCelerMockAddress,
+    } = await deployFixture());
+
+    snapshotId = await network.provider.send('evm_snapshot');
+  });
+
+  afterEach(async function () {
+    await network.provider.send('evm_revert', [snapshotId]);
+  });
+
   it('should deploy successfully', async function () {
-    const { diamondAddress } = await deployFixture();
-    const { deployer } = await getNamedAccounts();
-    const { deploy } = deployments;
-    const diamond = await ethers.getContract('DegenX');
-    const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress);
-    expect(await diamond.waitForDeployment()).to.be.instanceOf(BaseContract);
-    expect((await diamondLoupeFacet.facets()).length).to.eq(3);
-    const relayerCelerMock = await deploy('RelayerCelerMock', { from: deployer });
-    const { facetContract: celerFeeHubFacet } = await deployFacet('CelerFeeHubFacet', [relayerCelerMock.address]);
-    await addFacets([celerFeeHubFacet], diamondAddress);
+    const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress, deployerSigner);
     expect((await diamondLoupeFacet.facets()).length).to.eq(4);
   });
 
   describe('post-deployment', () => {
-    let diamondAddress: string;
-    beforeEach(async () => {
-      const { diamondAddress: _diamondAddress } = await deployFixture();
-      diamondAddress = _diamondAddress;
-      const { deployer } = await getNamedAccounts();
-      const { deploy } = deployments;
-      const relayerCelerMock = await deploy('RelayerCelerMock', { from: deployer, skipIfAlreadyDeployed: true });
-      const { facetContract } = await deployFacet('CelerFeeHubFacet', [relayerCelerMock.address]);
-      await addFacets([facetContract], diamondAddress);
-    });
-
     describe('Relayer For Chain Management', () => {
       it('should add relayer for chain', async () => {
-        const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
         await expect(celerFeeHubFacet.addRelayerForChain(ZeroAddress, 0)).to.be.revertedWithCustomError(
           celerFeeHubFacet,
           'AddressZero'
@@ -86,7 +141,6 @@ describe('CelerFeeHubFacet', () => {
       });
 
       it('should update relayer for chain', async () => {
-        const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
         await expect(celerFeeHubFacet.updateRelayerOnChain(ZeroAddress, 0)).to.be.revertedWithCustomError(
           celerFeeHubFacet,
           'AddressZero'
@@ -98,7 +152,8 @@ describe('CelerFeeHubFacet', () => {
         await expect(celerFeeHubFacet.updateRelayerOnChain(relayerAddress, feeChainId))
           .to.be.revertedWithCustomError(celerFeeHubFacet, 'ChainNotExisting')
           .withArgs(feeChainId);
-        await (await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId)).wait();
+
+        await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId);
         await expect(celerFeeHubFacet.updateRelayerOnChain(relayerAddress, feeChainId))
           .to.be.revertedWithCustomError(celerFeeHubFacet, 'RelayerExists')
           .withArgs(relayerAddress);
@@ -108,11 +163,10 @@ describe('CelerFeeHubFacet', () => {
       });
 
       it('should remove chain and its relayer', async () => {
-        const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
         await expect(celerFeeHubFacet.removeRelayerOnChain(ZeroAddress))
           .to.be.revertedWithCustomError(celerFeeHubFacet, 'ChainNotExisting')
           .withArgs(ZeroAddress);
-        await (await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId)).wait();
+        await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId);
         await expect(celerFeeHubFacet.removeRelayerOnChain(feeChainId))
           .to.emit(celerFeeHubFacet, 'RelayerForChainRemoved')
           .withArgs(feeChainId);
@@ -122,10 +176,7 @@ describe('CelerFeeHubFacet', () => {
     describe('Hub Functions', () => {
       describe('deployFeesWithCeler', () => {
         it('should execute deployFees on the Celer Relayer', async () => {
-          const relayerCelerMock = (await ethers.getContract('RelayerCelerMock')) as RelayerCelerMock;
-          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
-
-          await (await relayerCelerMock.setDeployFeesFeeCalcReturnValue(100)).wait();
+          await relayerCelerMock.setDeployFeesFeeCalcReturnValue(100);
 
           await expect(celerFeeHubFacet.deployFeesWithCeler()).to.be.revertedWithCustomError(
             celerFeeHubFacet,
@@ -143,7 +194,7 @@ describe('CelerFeeHubFacet', () => {
             'InsufficientFundsSent'
           );
 
-          await (await celerFeeHubFacet.updateDeployFeesWei(parseEther('1'))).wait();
+          await celerFeeHubFacet.updateDeployFeesWei(parseEther('1'));
 
           await expect(celerFeeHubFacet.deployFeesWithCeler({ value: parseEther('1') })).to.be.revertedWithCustomError(
             celerFeeHubFacet,
@@ -151,18 +202,15 @@ describe('CelerFeeHubFacet', () => {
           );
 
           // >>> prepare fee manager
-          const feeManagerFacet = await ethers.getContractAt('FeeManagerFacet', diamondAddress);
-          await (await feeManagerFacet.addChain({ chainId: feeChainId, target: chainTargetContract })).wait();
-          await (await feeManagerFacet.addChain({ chainId: feeChainIdOther, target: chainTargetContract })).wait();
-          await (
-            await feeManagerFacet.addFeeConfig({
-              id: feeId,
-              fee: feeValue,
-              currency: FeeCurrency.Token,
-              ftype: FeeType.Default,
-              receiver: feeReceiver,
-            })
-          ).wait();
+          await feeManagerFacet.addChain({ chainId: feeChainId, target: chainTargetContract });
+          await feeManagerFacet.addChain({ chainId: feeChainIdOther, target: chainTargetContract });
+          await feeManagerFacet.addFeeConfig({
+            id: feeId,
+            fee: feeValue,
+            currency: FeeCurrency.Token,
+            ftype: FeeType.Default,
+            receiver: feeReceiver,
+          });
           // <<< prepare fee manager
 
           await expect(celerFeeHubFacet.deployFeesWithCeler({ value: parseEther('1') })).to.be.revertedWithCustomError(
@@ -171,8 +219,8 @@ describe('CelerFeeHubFacet', () => {
           );
 
           // >>> prepare fee manager
-          await (await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainId, id: feeId })).wait();
-          await (await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainIdOther, id: feeId })).wait();
+          await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainId, id: feeId });
+          await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainIdOther, id: feeId });
           // <<< prepare fee manager
 
           await expect(celerFeeHubFacet.deployFeesWithCeler({ value: parseEther('1') })).to.be.revertedWithCustomError(
@@ -181,11 +229,11 @@ describe('CelerFeeHubFacet', () => {
           );
 
           // >>> prepare chain to relayer
-          await (await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId)).wait();
-          await (await celerFeeHubFacet.addRelayerForChain(relayerAddressOther, feeChainIdOther)).wait();
+          await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId);
+          await celerFeeHubFacet.addRelayerForChain(relayerAddressOther, feeChainIdOther);
           // <<< prepare chain to relayer
 
-          await (await celerFeeHubFacet.updateDeployFeesWei(0)).wait();
+          await celerFeeHubFacet.updateDeployFeesWei(0);
 
           await expect(celerFeeHubFacet.deployFeesWithCeler({ value: 1 })).to.be.revertedWithCustomError(
             celerFeeHubFacet,
@@ -193,10 +241,7 @@ describe('CelerFeeHubFacet', () => {
           );
 
           const tx = await celerFeeHubFacet.deployFeesWithCeler({ value: parseEther('1') });
-
-          const [deployerSigner] = await ethers.getSigners();
           await expect(tx).to.changeEtherBalance(deployerSigner, -200);
-
           await expect(tx)
             .to.emit(relayerCelerMock, 'deployFeesEvent')
             .withArgs(relayerAddress, chainTargetContract, feeChainId, feeDeployerMessageAdd)
@@ -208,36 +253,32 @@ describe('CelerFeeHubFacet', () => {
       describe('deployFeesWithCelerConfirm', () => {
         it('should receive an execution from the Celer Relayer to set the deployed state to a chain <> fee config relation', async () => {
           // >>> prepare relayer
-          const relayerCelerMock = (await ethers.getContract('RelayerCelerMock')) as RelayerCelerMock;
-          await (await relayerCelerMock.setDeployFeesFeeCalcReturnValue(100)).wait();
+          await relayerCelerMock.setDeployFeesFeeCalcReturnValue(100);
           // <<< prepare relayer
 
           // >>> prepare fee manager
-          const feeManagerFacet = await ethers.getContractAt('FeeManagerFacet', diamondAddress);
-          await (await feeManagerFacet.addChain({ chainId: feeChainId, target: chainTargetContract })).wait();
-          await (await feeManagerFacet.addChain({ chainId: feeChainIdOther, target: chainTargetContract })).wait();
-          await (
-            await feeManagerFacet.addFeeConfig({
-              id: feeId,
-              fee: feeValue,
-              currency: FeeCurrency.Token,
-              ftype: FeeType.Default,
-              receiver: feeReceiver,
-            })
-          ).wait();
-          await (await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainId, id: feeId })).wait();
-          await (await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainIdOther, id: feeId })).wait();
+          await feeManagerFacet.addChain({ chainId: feeChainId, target: chainTargetContract });
+          await feeManagerFacet.addChain({ chainId: feeChainIdOther, target: chainTargetContract });
+          await feeManagerFacet.addFeeConfig({
+            id: feeId,
+            fee: feeValue,
+            currency: FeeCurrency.Token,
+            ftype: FeeType.Default,
+            receiver: feeReceiver,
+          });
+          await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainId, id: feeId });
+          await feeManagerFacet.assignFeeConfigToChain({ chainId: feeChainIdOther, id: feeId });
           // <<< prepare fee manager
 
           // >>> prepare fee hub
-          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
-          await (await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId)).wait();
-          await (await celerFeeHubFacet.addRelayerForChain(relayerAddressOther, feeChainIdOther)).wait();
+          await celerFeeHubFacet.addRelayerForChain(relayerAddress, feeChainId);
+          await celerFeeHubFacet.addRelayerForChain(relayerAddressOther, feeChainIdOther);
           // <<< prepare fee hub
 
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainId, feeId)).to.eq(1);
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainIdOther, feeId)).to.eq(1);
-          await (await celerFeeHubFacet.deployFeesWithCeler({ value: 200 })).wait();
+
+          await celerFeeHubFacet.deployFeesWithCeler({ value: 200 });
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainId, feeId)).to.eq(2);
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainIdOther, feeId)).to.eq(2);
 
@@ -245,13 +286,11 @@ describe('CelerFeeHubFacet', () => {
             celerFeeHubFacet.deployFeesWithCelerConfirm(feeChainId, feeDeployerMessageAdd)
           ).to.be.revertedWithCustomError(celerFeeHubFacet, 'NotAllowed');
 
-          await (
-            await relayerCelerMock.fakeCelerFeeHubFacetDeployFeesWithCelerConfirm(
-              diamondAddress,
-              feeChainId,
-              feeDeployerMessageAdd
-            )
-          ).wait();
+          await relayerCelerMock.fakeCelerFeeHubFacetDeployFeesWithCelerConfirm(
+            diamondAddress,
+            feeChainId,
+            feeDeployerMessageAdd
+          );
 
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainId, feeId)).to.eq(3);
           expect(await feeManagerFacet.getFeeConfigDeployState(feeChainIdOther, feeId)).to.eq(2);
@@ -260,51 +299,55 @@ describe('CelerFeeHubFacet', () => {
 
       describe('sendFeesWithCeler', () => {
         let minter: MinterBurnerMock;
-        let deployerAddress: string, bountyReceiver: string;
+        let bountyReceiver: string;
 
         beforeEach(async () => {
-          [{ address: deployerAddress }, { address: bountyReceiver }] = await ethers.getSigners();
-          const { address } = await deployments.deploy('MinterBurnerMock', { from: deployerAddress });
-          minter = await ethers.getContractAt('MinterBurnerMock', address);
+          [, { address: bountyReceiver }] = await ethers.getSigners();
+          const { address } = await deployments.deploy('MinterBurnerMock', { from: deployer });
+          minter = await ethers.getContractAt('MinterBurnerMock', address, deployerSigner);
         });
 
         it('should execute deployFees on the Celer Relayer', async () => {
-          const relayerCelerMock = (await ethers.getContract('RelayerCelerMock')) as RelayerCelerMock;
           const { facetContract: erc20FacetBaseContract } = await deployFacet('ERC20Facet');
           const { facetContract: feeStoreFacetBaseContract } = await deployFacet('FeeStoreFacetMock');
-          await addFacets([erc20FacetBaseContract, feeStoreFacetBaseContract], diamondAddress);
-          const feeStoreFacet = await ethers.getContractAt('FeeStoreFacetMock', diamondAddress);
-          const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
+          await addFacets(
+            [erc20FacetBaseContract, feeStoreFacetBaseContract],
+            diamondAddress,
+            undefined,
+            undefined,
+            deployer
+          );
+          const feeStoreFacet = await ethers.getContractAt('FeeStoreFacetMock', diamondAddress, deployerSigner);
+          const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress, deployerSigner);
 
-          await (await feeStoreFacet.setIntermediateAsset(diamondAddress)).wait();
+          await feeStoreFacet.setIntermediateAsset(diamondAddress);
 
-          await (await erc20Facet.initERC20Facet('Test', 'Test', 18)).wait();
-          await (await erc20Facet.enable()).wait();
+          await erc20Facet.initERC20Facet('Test', 'Test', 18);
+          await erc20Facet.enable();
 
-          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
+          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress, deployerSigner);
           await expect(celerFeeHubFacet.updateSendFeesThreshold(parseEther('1000')))
             .to.emit(celerFeeHubFacet, 'UpdateThreshold')
             .withArgs(parseEther('1000'));
 
           // prepare mock
-          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(),  parseEther('6'))
+          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(), parseEther('6'));
           await minter.mint(diamondAddress, diamondAddress, parseEther('6'));
-          await (
-            await feeStoreFacet.prepareToSendFeesSETUP(
-              [parseEther('2'), parseEther('4')],
-              [
-                { id: feeId, fee: 10000, target: ZeroAddress, deleted: false },
-                { id: feeIdOther, fee: 10000, target: ZeroAddress, deleted: false },
-              ]
-            )
-          ).wait();
+
+          await feeStoreFacet.prepareToSendFeesSETUP(
+            [parseEther('2'), parseEther('4')],
+            [
+              { id: feeId, fee: 10000, target: ZeroAddress, deleted: false },
+              { id: feeIdOther, fee: 10000, target: ZeroAddress, deleted: false },
+            ]
+          );
 
           await expect(celerFeeHubFacet.sendFeesWithCeler(12345, bountyReceiver)).to.be.revertedWithCustomError(
             celerFeeHubFacet,
             'ThresholdNotMet'
           );
 
-          await (await celerFeeHubFacet.updateSendFeesThreshold(parseEther('0'))).wait();
+          await celerFeeHubFacet.updateSendFeesThreshold(parseEther('0'));
 
           await expect(celerFeeHubFacet.sendFeesWithCeler(12345, bountyReceiver)).to.be.revertedWithCustomError(
             celerFeeHubFacet,
@@ -322,7 +365,7 @@ describe('CelerFeeHubFacet', () => {
             'InsufficientFundsSent'
           );
 
-          await (await celerFeeHubFacet.updateSendFeesWei(parseEther('1'))).wait();
+          await celerFeeHubFacet.updateSendFeesWei(parseEther('1'));
 
           const tx = await celerFeeHubFacet.sendFeesWithCeler(12345, bountyReceiver, { value: parseEther('1') });
           await expect(tx)
@@ -338,39 +381,44 @@ describe('CelerFeeHubFacet', () => {
               ])
             );
 
-          await expect(tx).to.changeEtherBalance(deployerAddress, -100);
+          await expect(tx).to.changeEtherBalance(deployer, -100);
         });
 
         it('should execute deployFees on the Celer Relayer with exact fees', async () => {
           const { facetContract: erc20FacetBaseContract } = await deployFacet('ERC20Facet');
           const { facetContract: feeStoreFacetBaseContract } = await deployFacet('FeeStoreFacetMock');
-          await addFacets([erc20FacetBaseContract, feeStoreFacetBaseContract], diamondAddress);
-          const feeStoreFacet = await ethers.getContractAt('FeeStoreFacetMock', diamondAddress);
-          const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
+          await addFacets(
+            [erc20FacetBaseContract, feeStoreFacetBaseContract],
+            diamondAddress,
+            undefined,
+            undefined,
+            deployer
+          );
+          const feeStoreFacet = await ethers.getContractAt('FeeStoreFacetMock', diamondAddress, deployerSigner);
+          const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress, deployerSigner);
 
-          await (await feeStoreFacet.setIntermediateAsset(diamondAddress)).wait();
+          await feeStoreFacet.setIntermediateAsset(diamondAddress);
 
-          await (await erc20Facet.initERC20Facet('Test', 'Test', 18)).wait();
-          await (await erc20Facet.enable()).wait();
+          await erc20Facet.initERC20Facet('Test', 'Test', 18);
+          await erc20Facet.enable();
 
-          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress);
+          const celerFeeHubFacet = await ethers.getContractAt('CelerFeeHubFacet', diamondAddress, deployerSigner);
 
           // prepare mock
-          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(),  parseEther('6'))
+          await erc20Facet.updateBridgeSupplyCap(await minter.getAddress(), parseEther('6'));
           await minter.mint(diamondAddress, diamondAddress, parseEther('6'));
-          await (
-            await feeStoreFacet.prepareToSendFeesSETUP(
-              [parseEther('2'), parseEther('4')],
-              [
-                { id: feeId, fee: 10000, target: ZeroAddress, deleted: false },
-                { id: feeIdOther, fee: 10000, target: ZeroAddress, deleted: false },
-              ]
-            )
-          ).wait();
+
+          await feeStoreFacet.prepareToSendFeesSETUP(
+            [parseEther('2'), parseEther('4')],
+            [
+              { id: feeId, fee: 10000, target: ZeroAddress, deleted: false },
+              { id: feeIdOther, fee: 10000, target: ZeroAddress, deleted: false },
+            ]
+          );
 
           await expect(
             await celerFeeHubFacet.sendFeesWithCeler(12345, bountyReceiver, { value: 100 })
-          ).to.changeEtherBalance(deployerAddress, -100);
+          ).to.changeEtherBalance(deployer, -100);
         });
       });
     });
