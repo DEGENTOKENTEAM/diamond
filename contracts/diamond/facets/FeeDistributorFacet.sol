@@ -130,13 +130,7 @@ contract FeeDistributorFacet is IFeeDistributorFacet {
         _path[0] = s.baseToken;
         _path[1] = s.nativeWrapper;
         IERC20(s.baseToken).approve(s.router, _amount);
-        uint256[] memory _amounts = IRouter02(s.router).swapExactTokensForAVAX(
-            _amount,
-            (_amount * 997) / 1000,
-            _path,
-            address(this),
-            block.timestamp
-        );
+        uint256[] memory _amounts = IRouter02(s.router).swapExactTokensForAVAX(_amount, 0, _path, address(this), block.timestamp + 60);
         _amount = _amounts[_amounts.length - 1];
 
         // pay gas compensation to EOA

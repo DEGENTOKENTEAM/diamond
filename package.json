@@ -1,5 +1,5 @@
 {
-  "name": "dgnx-ethereum",
+  "name": "@degenx/diamond",
   "version": "1.0.0",
   "main": "index.js",
   "author": "Daniel",
