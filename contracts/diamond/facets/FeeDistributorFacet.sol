@@ -160,11 +160,7 @@ contract FeeDistributorFacet is IFeeDistributorFacet {
         _pushFees(_updatedDto);
     }
 
-    /// Distributes a single native fee
-    /// @param _feeId id of the fee
-    /// @param _bountyReceiver address of the bounty receiver
-    /// @param _bountyShareInBps percentage share in bps
-    /// @dev the fee receiver should to have defined a proper swapping path
+    /// @inheritdoc IFeeDistributorFacet
     function feeDistributorDepositSingleFeeNative(bytes32 _feeId, address _bountyReceiver, uint256 _bountyShareInBps) external payable {
         if (msg.value == 0) revert ZeroValueNotAllowed();
         uint256 _amount = msg.value;
