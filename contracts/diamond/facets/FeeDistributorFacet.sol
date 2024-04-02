@@ -160,6 +160,24 @@ contract FeeDistributorFacet is IFeeDistributorFacet {
         _pushFees(_updatedDto);
     }
 
+    /// Distributes a single native fee
+    /// @param _feeId id of the fee
+    /// @param _bountyReceiver address of the bounty receiver
+    /// @param _bountyShareInBps percentage share in bps
+    /// @dev the fee receiver should to have defined a proper swapping path
+    function feeDistributorDepositSingleFeeNative(bytes32 _feeId, address _bountyReceiver, uint256 _bountyShareInBps) external payable {
+        if (msg.value == 0) revert ZeroValueNotAllowed();
+        uint256 _amount = msg.value;
+        _amount = _payoutBountyInNativeWithCustomShare(_amount, _bountyReceiver, _bountyShareInBps);
+        FeeConfigSyncHomeDTO memory _updatedDto = FeeConfigSyncHomeDTO({
+            totalFees: _amount,
+            bountyReceiver: _bountyReceiver,
+            fees: new FeeConfigSyncHomeFees[](1)
+        });
+        _updatedDto.fees[0] = FeeConfigSyncHomeFees({ id: _feeId, amount: _amount });
+        _pushFees(_updatedDto);
+    }
+
     /// Adds a fee receiver
     /// @param _params contains the name, points, account address und swapPath for the receiver
     /// @dev swapPath[] needs to have the base token address on position 0
@@ -461,10 +479,15 @@ contract FeeDistributorFacet is IFeeDistributorFacet {
         s.running = _running;
     }
 
+    /// Pays out the bounty to the bounty receiver
+    /// @param _token address of the asset
+    /// @param _amount amount of the asser
+    /// @param _receiver address of the bounty receiver
+    /// @dev only pays out the bounty if the distributor is running
     function _payoutBountyInToken(address _token, uint256 _amount, address _receiver) internal returns (uint256 _amountLeft) {
         Storage storage s = _store();
         _amountLeft = _amount;
-        if (s.bountyActive && s.bountyShare > 0 && _receiver != address(0) && _amountLeft > 0) {
+        if (s.running && s.bountyActive && s.bountyShare > 0 && _receiver != address(0) && _amountLeft > 0) {
             uint256 _bountyAmount = (_amountLeft * s.bountyShare) / 10 ** 6;
             _amountLeft -= _bountyAmount;
             s.totalBounties += _bountyAmount;
@@ -476,11 +499,37 @@ contract FeeDistributorFacet is IFeeDistributorFacet {
         }
     }
 
+    /// Pays out the bounty to the bounty receiver
+    /// @param _amount amount of the asser
+    /// @param _receiver address of the bounty receiver
+    /// @dev only pays out the bounty if the distributor is running
     function _payoutBountyInNative(uint256 _amount, address _receiver) internal returns (uint256 _amountLeft) {
         Storage storage s = _store();
         _amountLeft = _amount;
-        if (s.bountyActive && s.bountyShare > 0 && _receiver != address(0) && _amountLeft > 0) {
+        if (s.running && s.bountyActive && s.bountyShare > 0 && _receiver != address(0) && _amountLeft > 0) {
             uint256 _bountyAmount = (_amountLeft * s.bountyShare) / 10 ** 6;
+            _amountLeft -= _bountyAmount;
+            s.totalBounties += _bountyAmount;
+            s.lastBountyAmount = _bountyAmount;
+            s.lastBountyReceiver = _receiver;
+            payable(_receiver).sendValue(_bountyAmount);
+            emit BountyPaid(_bountyAmount, _receiver);
+        }
+    }
+
+    /// Pays out the bounty to the bounty receiver with a given custom share
+    /// @param _amount base amount for the bounty calculation
+    /// @param _receiver address of the bounty receiver
+    /// @param _customShare bps of the custom share of the bounty
+    function _payoutBountyInNativeWithCustomShare(
+        uint256 _amount,
+        address _receiver,
+        uint256 _customShare
+    ) internal returns (uint256 _amountLeft) {
+        Storage storage s = _store();
+        _amountLeft = _amount;
+        if (s.running && s.bountyActive && _customShare > 0 && _receiver != address(0) && _amountLeft > 0) {
+            uint256 _bountyAmount = (_amountLeft * _customShare) / 10 ** 4;
             _amountLeft -= _bountyAmount;
             s.totalBounties += _bountyAmount;
             s.lastBountyAmount = _bountyAmount;

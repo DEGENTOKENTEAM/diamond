@@ -1,9 +1,8 @@
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
-import { BaseContract, Contract, MaxInt256, ZeroAddress, parseEther } from 'ethers';
+import { Contract, ContractTransactionResponse, MaxInt256, ZeroAddress, parseEther } from 'ethers';
 import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { isEqual } from 'lodash';
-import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
 import {
   DepositableMock,
@@ -427,9 +426,10 @@ describe('FeeDistributorFacet', () => {
         // prepare LP
         await nativeWrapper.deposit({ value: parseEther('10') });
         await nativeWrapper.connect(lp).approve(routerAddress, MaxInt256);
+        await nativeWrapper.transfer(lp.address, parseEther('10'));
+
         await baseToken.connect(lp).approve(routerAddress, MaxInt256);
         await baseToken.transfer(diamondAddress, parseEther('4'));
-        await nativeWrapper.transfer(lp.address, parseEther('10'));
         await baseToken.transfer(lp.address, parseEther('10'));
       });
 
@@ -770,6 +770,91 @@ describe('FeeDistributorFacet', () => {
           erc20,
           [receiver2Address, lp],
           [parseEther('2.666666666666666668'), parseEther('-2.666666666666666668')]
+        );
+      });
+
+      it('should be possible by anyone in native with a custom bounty in bps', async () => {
+        let tx: ContractTransactionResponse;
+        const bountyWallet = ethers.Wallet.createRandom();
+
+        //
+        // prepare
+        //
+
+        // remove all receivers
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver1Address);
+        await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
+        await feeDistributorFacet.removeFeeDistributionReceiver(eoaReceiver.address);
+
+        // LP
+        await erc20.transfer(lp.address, parseEther('10'));
+        await erc20.connect(lp).approve(routerAddress, MaxInt256);
+
+        // add a single receiver with a swap path nativewrapper/erc20
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver1Address, receiverName1, 20000, [nativeWrapperAddress, erc20Address])
+        );
+
+        await expect(
+          feeDistributorFacet.feeDistributorDepositSingleFeeNative(
+            feeId,
+            bountyWallet.address,
+            2000 // 20%
+          )
+        ).to.be.revertedWithCustomError(feeDistributorFacet, 'ZeroValueNotAllowed');
+
+        await feeDistributorFacet.startFeeDistribution();
+
+        // without bounty being active
+        tx = await feeDistributorFacet.feeDistributorDepositSingleFeeNative(
+          feeId,
+          bountyWallet.address,
+          2000, // 20%
+          { value: parseEther('2') }
+        );
+        await expect(tx).to.emit(router, 'swapExactAVAXForTokensEvent');
+        await expect(tx).to.changeEtherBalances(
+          [bountyWallet.address, deployer, nativeWrapperAddress],
+          [parseEther('0'), parseEther('-2'), parseEther('2')]
+        );
+        await expect(tx).to.changeTokenBalances(erc20, [receiver1Address, lp], [parseEther('2'), parseEther('-2')]);
+
+        await feeDistributorFacet.enableFeeDistributorBounty();
+
+        // bounty active
+        tx = await feeDistributorFacet.feeDistributorDepositSingleFeeNative(
+          feeId,
+          bountyWallet.address,
+          2000, // 20%
+          { value: parseEther('2') }
+        );
+        await expect(tx).to.emit(router, 'swapExactAVAXForTokensEvent');
+        await expect(tx).to.changeEtherBalances(
+          [bountyWallet.address, deployer, nativeWrapperAddress],
+          [parseEther('0.4'), parseEther('-2'), parseEther('1.6')]
+        );
+        await expect(tx).to.changeTokenBalances(erc20, [receiver1Address, lp], [parseEther('1.6'), parseEther('-1.6')]);
+
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(receiver2Address, receiverName2, 60000, [nativeWrapperAddress, erc20Address])
+        );
+
+        // additional receiver
+        tx = await feeDistributorFacet.feeDistributorDepositSingleFeeNative(
+          feeId,
+          bountyWallet.address,
+          2000, // 20%
+          { value: parseEther('2') }
+        );
+        await expect(tx).to.emit(router, 'swapExactAVAXForTokensEvent');
+        await expect(tx).to.changeEtherBalances(
+          [bountyWallet.address, deployer, nativeWrapperAddress],
+          [parseEther('0.4'), parseEther('-2'), parseEther('1.6')]
+        );
+        await expect(tx).to.changeTokenBalances(
+          erc20,
+          [receiver1Address, receiver2Address, lp],
+          [parseEther('0.4'), parseEther('1.2'), parseEther('-1.6')]
         );
       });
     });
