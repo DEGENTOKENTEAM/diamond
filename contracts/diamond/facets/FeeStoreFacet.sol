@@ -106,7 +106,7 @@ contract FeeStoreFacet is IFeeStoreFacet {
         }
     }
 
-    /// @notice Sends the current collected fees to the Manager in case no bridge provider is working and the job needs to be done manually
+    /// @notice Sends the current collected fees to the Operator in case no bridge provider is working and the job needs to be done manually
     function collectFeesFromFeeStore() external {
         LibAccessControlEnumerable.checkRole(Constants.FEE_STORE_MANAGER_ROLE);
         LibFeeStoreStorage.FeeStoreStorage storage s = _store();

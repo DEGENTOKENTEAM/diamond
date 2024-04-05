@@ -163,7 +163,16 @@ async function doCut(
     signer ? await ethers.getSigner(signer) : (await ethers.getSigners())[0]
   );
   const tx = await cutter.diamondCut(cut, initContract, initData);
-  deployments.log('Diamond cut tx: ', tx.hash);
+  deployments.log(`Diamond cut tx: ${tx.hash}`);
   const receipt = await tx.wait();
   if (!receipt?.status) throw Error(`Diamond upgrade failed: ${tx.hash}`);
+}
+
+export async function executeInit(
+  diamondAddress: string,
+  initContract: string,
+  initData: string,
+  signer?: string
+): Promise<void> {
+  doCut(diamondAddress, [], initContract, initData, signer);
 }

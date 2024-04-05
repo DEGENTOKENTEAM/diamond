@@ -26,6 +26,7 @@ import {
   receiverName1,
   receiverName2,
   receiverName3,
+  receiverName4,
 } from './utils/mocks';
 
 const deployFixture = async () => {
@@ -93,7 +94,8 @@ describe('FeeDistributorFacet', () => {
   let feeDistributorFacet: FeeDistributorFacet;
   let snapshotId: any;
 
-  const BOUNTY_SHARE = 10000;
+  const BOUNTY_SHARE = 100; // 1%
+  // const BOUNTY_SHARE = 10000;
 
   beforeEach(async () => {
     ({
@@ -375,14 +377,15 @@ describe('FeeDistributorFacet', () => {
     describe('Distribution', () => {
       let feeManagerFacet: FeeManagerFacet;
       let otherSigner: SignerWithAddress;
-      let eoaReceiver: SignerWithAddress;
+      let eoaReceiver1: SignerWithAddress;
+      let eoaReceiver2: SignerWithAddress;
       let receiver1: DepositableMock;
       let receiver1Address: string;
       let receiver2: DepositableMock;
       let receiver2Address: string;
 
       beforeEach(async () => {
-        [, , otherSigner, eoaReceiver] = await ethers.getSigners();
+        [, , otherSigner, eoaReceiver1, eoaReceiver2] = await ethers.getSigners();
         const { deploy } = deployments;
         const { deployer } = await getNamedAccounts();
         const deployerSigner = await ethers.getSigner(deployer);
@@ -419,9 +422,7 @@ describe('FeeDistributorFacet', () => {
 
         await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver1Address, receiverName1, 40000));
         await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(receiver2Address, receiverName2, 40000));
-        await feeDistributorFacet.addFeeDistributionReceiver(
-          addReceiverParams(eoaReceiver.address, receiverName3, 20000)
-        );
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(eoaReceiver1.address, receiverName3, 20000)); // prettier-ignore
 
         // prepare LP
         await nativeWrapper.deposit({ value: parseEther('10') });
@@ -435,7 +436,17 @@ describe('FeeDistributorFacet', () => {
 
       it('should be done when fees are getting pushed', async () => {
         const { deployer } = await getNamedAccounts();
-        const dtoMock: FeeConfigSyncHomeDTOStruct = { fees: [], bountyReceiver: ZeroAddress, totalFees: 0 };
+        const mockEmptyDTO: FeeConfigSyncHomeDTOStruct = { fees: [], bountyReceiver: ZeroAddress, totalFees: 0 };
+
+        // prepare addition receiver
+        await feeDistributorFacet.removeFeeDistributionReceiver(eoaReceiver1.address);
+        await feeDistributorFacet.addFeeDistributionReceiver(addReceiverParams(eoaReceiver1.address, receiverName3, 10000)); // prettier-ignore
+        await feeDistributorFacet.addFeeDistributionReceiver(
+          addReceiverParams(eoaReceiver2.address, receiverName4, 10000, [
+            await nativeWrapper.getAddress(),
+            await baseToken.getAddress(),
+          ])
+        );
 
         await expect(
           feeDistributorFacet.connect(otherSigner).setPushFeesGasCompensationForCaller(500000)
@@ -445,19 +456,19 @@ describe('FeeDistributorFacet', () => {
           .to.emit(feeDistributorFacet, 'PushFeesGasCompensationForCallerUpdate')
           .withArgs(500000);
 
-        await expect(feeDistributorFacet.connect(otherSigner).pushFees(erc20Address, 0, dtoMock)).to.be.revertedWith(
-          accessControlError(await otherSigner.getAddress(), FEE_DISTRIBUTOR_PUSH_ROLE)
-        );
-        await expect(feeDistributorFacet.pushFees(erc20Address, 0, dtoMock)).to.be.revertedWithCustomError(
+        await expect(
+          feeDistributorFacet.connect(otherSigner).pushFees(erc20Address, 0, mockEmptyDTO)
+        ).to.be.revertedWith(accessControlError(await otherSigner.getAddress(), FEE_DISTRIBUTOR_PUSH_ROLE));
+        await expect(feeDistributorFacet.pushFees(erc20Address, 0, mockEmptyDTO)).to.be.revertedWithCustomError(
           feeDistributorFacet,
           'WrongToken'
         );
-        await expect(feeDistributorFacet.pushFees(baseTokenAddress, 0, dtoMock)).to.be.revertedWithCustomError(
+        await expect(feeDistributorFacet.pushFees(baseTokenAddress, 0, mockEmptyDTO)).to.be.revertedWithCustomError(
           feeDistributorFacet,
           'ZeroValueNotAllowed'
         );
         await expect(
-          feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), dtoMock)
+          feeDistributorFacet.pushFees(baseTokenAddress, parseEther('2'), mockEmptyDTO)
         ).to.be.revertedWithCustomError(feeDistributorFacet, 'MissingData');
 
         await baseToken.transfer(diamondAddress, parseEther('2'));
@@ -477,13 +488,16 @@ describe('FeeDistributorFacet', () => {
           bountyReceiver: ZeroAddress,
           totalFees: parseEther('2'),
         });
+
         await expect(tx)
           .to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(receiver1Address, 399999999999900000n)
           .to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(receiver2Address, 399999999999900000n)
           .to.emit(feeDistributorFacet, 'Distributed')
-          .withArgs(eoaReceiver.address, 199999999999950000n)
+          .withArgs(eoaReceiver1.address, 99999999999975000n)
+          .to.emit(feeDistributorFacet, 'Distributed')
+          .withArgs(eoaReceiver2.address, 99999999999975000n)
           .to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(DEAD_ADDRESS, 999999999999750000n)
           .to.emit(receiver1, 'depositEvent')
@@ -491,15 +505,15 @@ describe('FeeDistributorFacet', () => {
           .to.emit(receiver2, 'depositEvent')
           .withArgs(nativeWrapperAddress, 399999999999900000n);
 
+        await expect(tx).to.changeTokenBalance(baseToken, eoaReceiver2.address, 99999999999975000n);
         await expect(tx).to.changeTokenBalances(
           nativeWrapper,
           [receiver1Address, receiver2Address],
           [399999999999900000n, 399999999999900000n]
         );
-
         await expect(tx).to.changeEtherBalances(
-          [eoaReceiver.address, DEAD_ADDRESS, deployer],
-          [199999999999950000n, 999999999999750000n, 500000n]
+          [eoaReceiver1.address, DEAD_ADDRESS, deployer],
+          [99999999999975000n, 999999999999750000n, 500000n]
         );
       });
 
@@ -530,7 +544,7 @@ describe('FeeDistributorFacet', () => {
           .and.to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(receiver2Address, parseEther('0.396'))
           .and.to.emit(feeDistributorFacet, 'Distributed')
-          .withArgs(eoaReceiver.address, parseEther('0.198'))
+          .withArgs(eoaReceiver1.address, parseEther('0.198'))
           .and.to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(DEAD_ADDRESS, parseEther('0.99'))
           .and.to.emit(receiver1, 'depositEvent')
@@ -545,7 +559,7 @@ describe('FeeDistributorFacet', () => {
         );
 
         await expect(tx).to.changeEtherBalances(
-          [eoaReceiver.address, DEAD_ADDRESS, bountyWallet.address],
+          [eoaReceiver1.address, DEAD_ADDRESS, bountyWallet.address],
           [parseEther('0.198'), parseEther('0.99'), parseEther('0.02')]
         );
 
@@ -626,7 +640,7 @@ describe('FeeDistributorFacet', () => {
           .and.to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(receiver2Address, parseEther('0.4'))
           .and.to.emit(feeDistributorFacet, 'Distributed')
-          .withArgs(eoaReceiver.address, parseEther('0.2'))
+          .withArgs(eoaReceiver1.address, parseEther('0.2'))
           .and.to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(DEAD_ADDRESS, parseEther('1'))
           .and.to.emit(receiver1, 'depositEvent')
@@ -641,7 +655,7 @@ describe('FeeDistributorFacet', () => {
         );
 
         await expect(tx).to.changeEtherBalances(
-          [eoaReceiver.address, DEAD_ADDRESS, bountyWallet.address],
+          [eoaReceiver1.address, DEAD_ADDRESS, bountyWallet.address],
           [parseEther('0.2'), parseEther('1'), parseEther('0')]
         );
 
@@ -696,7 +710,7 @@ describe('FeeDistributorFacet', () => {
           .to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(receiver2Address, parseEther('0.4'))
           .to.emit(feeDistributorFacet, 'Distributed')
-          .withArgs(eoaReceiver.address, parseEther('0.2'))
+          .withArgs(eoaReceiver1.address, parseEther('0.2'))
           .to.emit(feeDistributorFacet, 'Distributed')
           .withArgs(DEAD_ADDRESS, parseEther('1'))
           .to.emit(receiver2, 'depositEvent')
@@ -711,7 +725,7 @@ describe('FeeDistributorFacet', () => {
         );
 
         await expect(tx).to.changeEtherBalances(
-          [eoaReceiver.address, DEAD_ADDRESS],
+          [eoaReceiver1.address, DEAD_ADDRESS],
           [parseEther('0.4'), parseEther('1')]
         );
 
@@ -742,6 +756,8 @@ describe('FeeDistributorFacet', () => {
 
       it('should swap to a different token if a receiver expects this', async () => {
         await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
+        await feeDistributorFacet.setFeeDistributorBountyShare(0);
+        await feeDistributorFacet.enableFeeDistributorBounty();
 
         await feeDistributorFacet.addFeeDistributionReceiver(
           addReceiverParams(receiver2Address, receiverName2, 120000, [nativeWrapperAddress, erc20Address])
@@ -784,7 +800,7 @@ describe('FeeDistributorFacet', () => {
         // remove all receivers
         await feeDistributorFacet.removeFeeDistributionReceiver(receiver1Address);
         await feeDistributorFacet.removeFeeDistributionReceiver(receiver2Address);
-        await feeDistributorFacet.removeFeeDistributionReceiver(eoaReceiver.address);
+        await feeDistributorFacet.removeFeeDistributionReceiver(eoaReceiver1.address);
 
         // LP
         await erc20.transfer(lp.address, parseEther('10'));

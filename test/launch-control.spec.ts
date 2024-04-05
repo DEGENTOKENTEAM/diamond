@@ -1,16 +1,14 @@
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
+import * as dotenv from 'dotenv';
+import { expand as dotenvExpand } from 'dotenv-expand';
 import { ZeroAddress, parseEther } from 'ethers';
 import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
-import { AccessControlEnumerableFacet, ERC20Facet, LaunchControl, MinterBurnerMock } from '../typechain-types';
+import { ERC20Facet, LaunchControl, MinterBurnerMock } from '../typechain-types';
 import { deployFixture as deployDiamondFixture } from './utils/helper';
 import { ADMIN_ROLE, MINTER_ROLE } from './utils/mocks';
-
-// load env config
-import * as dotenv from 'dotenv';
-import { expand as dotenvExpand } from 'dotenv-expand';
 const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
 
@@ -28,24 +26,24 @@ const deployFixture = async () => {
 
   // deploy launcher
   const { address: launchAddress } = await deploy('LaunchControl', { from: deployer, skipIfAlreadyDeployed: false });
-  const launch = await ethers.getContractAt('LaunchControl', launchAddress, deployerSigner);
+  const launch = await ethers.getContractAt('LaunchControl', launchAddress);
 
   // deploy minter (needs to be contract)
   const { address: minterAddress } = await deploy('MinterBurnerMock', { from: deployer, skipIfAlreadyDeployed: false });
-  const minter = await ethers.getContractAt('MinterBurnerMock', minterAddress, deployerSigner);
+  const minter = await ethers.getContractAt('MinterBurnerMock', minterAddress);
 
   {
     const { facetContract } = await deployFacet('ERC20Facet');
-    await addFacets([facetContract], diamondAddress, undefined, undefined, deployer);
+    await addFacets([facetContract], diamondAddress);
   }
 
   {
     const { facetContract } = await deployFacet('AccessControlEnumerableFacet');
-    await addFacets([facetContract], diamondAddress, undefined, undefined, deployer);
+    await addFacets([facetContract], diamondAddress);
   }
 
-  const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress, deployerSigner);
-  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress, deployerSigner);
+  const erc20Facet = await ethers.getContractAt('ERC20Facet', diamondAddress);
+  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
 
   // init & configure
   await erc20Facet.initERC20Facet('A', 'B', 18);
@@ -71,10 +69,16 @@ describe('LaunchControl', function () {
   let minter: MinterBurnerMock;
   let launch: LaunchControl;
   let erc20Facet: ERC20Facet;
+  let snapshotId: any;
 
   beforeEach(async function () {
     ({ deployer, diamondAddress, launchAddress, msig, launch, erc20Facet, minter, deployerSigner } =
       await deployFixture());
+    snapshotId = await network.provider.send('evm_snapshot');
+  });
+
+  afterEach(async function () {
+    await network.provider.send('evm_revert', [snapshotId]);
   });
 
   describe('Deployment', function () {

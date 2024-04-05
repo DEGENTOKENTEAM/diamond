@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
-import { AbiCoder, Contract, ZeroAddress, ZeroHash, keccak256, parseEther, toUtf8Bytes } from 'ethers';
+import { AbiCoder, ZeroAddress, ZeroHash, keccak256, parseEther, toUtf8Bytes } from 'ethers';
 import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
@@ -353,7 +353,15 @@ describe('FeeStoreFacet', () => {
         'ERC20Pausable: token transfer while paused'
       );
 
+      await erc20.setReturnFalseOnTransfer(true);
       await erc20.enable();
+
+      await expect(feeStoreFacet.restoreFeesFromSendFees(restoreDto)).to.be.revertedWithCustomError(
+        feeStoreFacet,
+        'TransferFailed'
+      );
+
+      await erc20.setReturnFalseOnTransfer(false);
 
       const tx = await feeStoreFacet.restoreFeesFromSendFees(restoreDto);
       await expect(tx).to.emit(feeStoreFacet, 'FeesRestored');

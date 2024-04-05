@@ -201,6 +201,7 @@ export const erc20TransferError = 'ERC20: transfer amount exceeds balance';
 export const receiverName1 = 'Receiver 1';
 export const receiverName2 = 'Receiver 2';
 export const receiverName3 = 'Receiver 3';
+export const receiverName4 = 'Receiver 4';
 export const addReceiverParams = (
   account: string,
   name: string = receiverName1,

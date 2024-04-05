@@ -11,10 +11,6 @@ library Constants {
     bytes32 constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
     // 0x6c0757dc3e6b28b2580c03fd9e96c274acf4f99d91fbec9b418fa1d70604ff1c
     bytes32 constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
-    // 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
-    bytes32 constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    // 0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848
-    bytes32 constant BURNER_ROLE = keccak256("BURNER_ROLE");
     // 0x63eb04268b235ac1afacf3bcf4b19c5c175d0417a1555fb3ff79ae190f71ee7c
     bytes32 constant FEE_STORE_MANAGER_ROLE = keccak256("FEE_STORE_MANAGER_ROLE");
     // 0x77f52ccf2f32e71a0cff8f14ad8c8303b7d2e4c7609b8fba963114f4db2af767

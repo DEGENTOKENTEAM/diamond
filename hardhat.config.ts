@@ -2,20 +2,63 @@ import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-ethers';
 import '@nomicfoundation/hardhat-toolbox';
 import '@nomicfoundation/hardhat-verify';
+import * as dotenv from 'dotenv';
+import { expand as dotenvExpand } from 'dotenv-expand';
 import 'hardhat-deploy';
 import 'hardhat-deploy-ethers';
 import { HardhatUserConfig } from 'hardhat/config';
 import 'solidity-docgen';
+import './config';
 import './tasks';
+import {
+  NETWORK_HARDHAT,
+  NETWORK_LOCALFORK,
+  NETWORK_LOCALHOST,
+  NETWORK_MAINNET_AVAX,
+  NETWORK_MAINNET_ETH,
+} from './utils/networks';
 require('@openzeppelin/hardhat-upgrades');
 require('hardhat-contract-sizer');
 require('solidity-coverage');
 
-// load env config
-import * as dotenv from 'dotenv';
-import { expand as dotenvExpand } from 'dotenv-expand';
 const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
+
+const accounts =
+  process.env.USE_REAL_ACCOUNTS === 'true'
+    ? [`${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`, `${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`]
+    : undefined;
+
+const accountsHardhat =
+  process.env.USE_REAL_ACCOUNTS === 'true'
+    ? [
+        { privateKey: `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`, balance: (1337n * 10n ** 18n).toString() },
+        { privateKey: `${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, balance: (1337n * 10n ** 18n).toString() },
+      ]
+    : undefined;
+
+const localforkRPCs: { [network: string]: { block: number; url: string; chainId: number } } = {
+  [NETWORK_MAINNET_AVAX]: {
+    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_AVAX}`),
+    block: parseInt(`${process.env.LOCALFORK_BLOCK_AVAX}`),
+    url: `${process.env.LOCALFORK_RPC_AVAX}`,
+  },
+  [NETWORK_MAINNET_ETH]: {
+    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_ETH}`),
+    block: parseInt(`${process.env.LOCALFORK_BLOCK_ETH}`),
+    url: `${process.env.LOCALFORK_RPC_ETH}`,
+  },
+  [NETWORK_HARDHAT]: {
+    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_ETH}`),
+    block: parseInt(`${process.env.LOCALFORK_BLOCK_ETH}`),
+    url: `${process.env.LOCALFORK_RPC_ETH}`,
+  },
+};
+
+const useLocalforkInstead = process.env.USE_LOCALFORK_INSTEAD !== 'false';
+const localforkUrlAVAX = 'http://127.0.0.1:8545';
+const localforkUrlETH = 'http://127.0.0.1:8546';
+const localforkUrlBNB = 'http://127.0.0.1:8547';
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -50,65 +93,56 @@ const config: HardhatUserConfig = {
     ],
   },
   namedAccounts: {
-    diamondDeployer: 0,
-    deployer: 1,
+    deployer: 0,
+    diamondDeployer: 1,
   },
   networks: {
     'testnet-eth': {
       chainId: parseInt(process.env.TESTNET_ETH_CHAIN_ID!),
-      url: `${process.env.TESTNET_ETH_RPC!}`,
-      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
+      url: useLocalforkInstead ? localforkUrlETH : `${process.env.TESTNET_ETH_RPC!}`,
+      accounts,
     },
     'testnet-avax': {
       chainId: parseInt(process.env.TESTNET_AVAX_CHAIN_ID!),
-      url: `${process.env.TESTNET_AVAX_RPC!}`,
-      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
+      url: useLocalforkInstead ? localforkUrlAVAX : `${process.env.TESTNET_AVAX_RPC!}`,
+      accounts,
     },
     'testnet-bsc': {
       chainId: parseInt(process.env.TESTNET_BSC_CHAIN_ID!),
-      url: `${process.env.TESTNET_BSC_RPC!}`,
-      accounts: [`${process.env.TESTNET_DEPLOYER_PK_DIAMOND}`, `${process.env.TESTNET_DEPLOYER_PK_CONTRACTS}`],
+      url: useLocalforkInstead ? localforkUrlBNB : `${process.env.TESTNET_BSC_RPC!}`,
+      accounts,
     },
     'mainnet-eth': {
       chainId: parseInt(process.env.MAINNET_ETH_CHAIN_ID!),
-      url: `${process.env.MAINNET_ETH_RPC!}`,
-      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+      url: useLocalforkInstead ? localforkUrlETH : `${process.env.MAINNET_ETH_RPC!}`,
+      accounts,
     },
     'mainnet-avax': {
       chainId: parseInt(process.env.MAINNET_AVAX_CHAIN_ID!),
-      url: `${process.env.MAINNET_AVAX_RPC!}`,
+      url: useLocalforkInstead ? localforkUrlAVAX : `${process.env.MAINNET_AVAX_RPC!}`,
       gasMultiplier: 1.2,
-      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+      accounts,
     },
     'mainnet-bsc': {
       chainId: parseInt(process.env.MAINNET_BSC_CHAIN_ID!),
-      url: `${process.env.MAINNET_BSC_RPC!}`,
+      url: useLocalforkInstead ? localforkUrlBNB : `${process.env.MAINNET_BSC_RPC!}`,
       gasMultiplier: 1.2,
-      accounts: [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`],
+      accounts,
     },
     localfork: {
       saveDeployments: false,
-      url: 'http://127.0.0.1:8545',
+      url: localforkUrlAVAX,
       chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
-      accounts:
-        process.env.LOCALFORK_USE_REAL_ACCOUNTS !== 'false'
-          ? [`${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`]
-          : undefined,
+      accounts,
     },
     hardhat: {
       saveDeployments: false,
-      chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
-      accounts:
-        process.env.LOCALFORK_USE_REAL_ACCOUNTS !== 'false'
-          ? [
-              { privateKey: `${process.env.MAINNET_DEPLOYER_PK_DIAMOND}`, balance: (1337n * 10n ** 18n).toString() },
-              { privateKey: `${process.env.MAINNET_DEPLOYER_PK_CONTRACTS}`, balance: (1337n * 10n ** 18n).toString() },
-            ]
-          : undefined,
+      chainId: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].chainId,
+      accounts: accountsHardhat,
       forking: {
         enabled: true,
-        url: `${process.env.LOCALFORK_RPC}`,
-        // blockNumber: parseInt(process.env.LOCALFORK_BLOCK!),
+        url: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].url,
+        blockNumber: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].block,
       },
     },
   },

@@ -24,6 +24,7 @@ import {
   feeConfigParamsUpdateFaulty,
   feeDeployerMessageAdd,
   feeId,
+  feeIdOther,
   feeReceiver,
   feeReceiverUpdate,
   unassignFeeConfigFromAllChainsParams,
@@ -106,14 +107,19 @@ describe('FeeManagerFacet', function () {
       );
       await feeManagerFacet.addChain(addChainParams);
       await feeManagerFacet.addFeeConfig(feeConfigParamsAdd);
+      await feeManagerFacet.addFeeConfig({ ...feeConfigParamsAdd, id: feeIdOther });
       await expect(feeManagerFacet.updateFeeConfig(feeConfigParamsUpdateFaulty)).to.revertedWithCustomError(
         feeManagerFacet,
         'FeeZero'
       );
       await expect(feeManagerFacet.updateFeeConfig(feeConfigParamsUpdate)).to.emit(feeManagerFacet, 'FeeConfigUpdated');
-      const feeConfig = await feeManagerFacet.getFeeConfig(feeId);
-      expect(feeConfig.fee).to.eq(200);
-      expect(feeConfig.receiver).to.eq(feeReceiverUpdate);
+      const feeConfigA = await feeManagerFacet.getFeeConfig(feeId);
+      expect(feeConfigA.fee).to.eq(200);
+      expect(feeConfigA.receiver).to.eq(feeReceiverUpdate);
+
+      const feeConfigB = await feeManagerFacet.getFeeConfig(feeIdOther);
+      expect(feeConfigB.fee).to.eq(100);
+      expect(feeConfigB.receiver).to.eq(feeReceiver);
     });
 
     it('should remove config successfully', async () => {
@@ -123,6 +129,7 @@ describe('FeeManagerFacet', function () {
         .withArgs(feeId);
       await feeManagerFacet.addChain(addChainParams);
       await feeManagerFacet.addFeeConfig(feeConfigParamsAdd);
+      await feeManagerFacet.addFeeConfig({ ...feeConfigParamsAdd, id: feeIdOther });
       await expect(feeManagerFacet.removeFeeConfig(removeFeeConfigParams))
         .to.emit(feeManagerFacet, 'FeeConfigRemoved')
         .withArgs(feeId, deployer);
@@ -191,6 +198,7 @@ describe('FeeManagerFacet', function () {
         .to.be.revertedWithCustomError(feeManagerFacet, 'ConfigNotExisting')
         .withArgs(feeId);
       await feeManagerFacet.addFeeConfig(feeConfigParamsAdd);
+      await feeManagerFacet.addFeeConfig({ ...feeConfigParamsAdd, id: feeIdOther });
       await expect(feeManagerFacet.unassignFeeConfigFromChain(unassignFeeConfigFromChainParams))
         .to.be.revertedWithCustomError(feeManagerFacet, 'ChainIdNotExisting')
         .withArgs(feeChainId);
@@ -199,6 +207,7 @@ describe('FeeManagerFacet', function () {
         .to.be.revertedWithCustomError(feeManagerFacet, 'ConfigNotAssignedToChain')
         .withArgs(feeId, feeChainId);
       await feeManagerFacet.assignFeeConfigToChain(assignFeeConfigToChainParams);
+      await feeManagerFacet.assignFeeConfigToChain({ ...assignFeeConfigToChainParams, id: feeIdOther });
       await expect(feeManagerFacet.unassignFeeConfigFromChain(unassignFeeConfigFromChainParams))
         .to.emit(feeManagerFacet, 'ConfigUnassignedFromChain')
         .withArgs(feeId, feeChainId);

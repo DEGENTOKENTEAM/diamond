@@ -6,8 +6,17 @@
   "license": "MIT",
   "scripts": {
     "preinstall": "git submodule update --init --recursive",
-    "test": "REPORT_GAS=true npx hardhat test",
-    "test:localfork": "REPORT_GAS=true npx hardhat test --network localfork",
+    "test": "USE_REAL_ACCOUNTS=false REPORT_GAS=true npx hardhat test",
+    "test:localfork": "USE_REAL_ACCOUNTS=false REPORT_GAS=true npx hardhat test --network localfork",
+    "node:mainnet-avax": "LOCALFORK_RPC_NETWORK=mainnet-avax npx hardhat node --port 8545 --no-deploy",
+    "node:mainnet-eth": "LOCALFORK_RPC_NETWORK=mainnet-eth npx hardhat node --port 8546 --no-deploy",
+    "node:all": "run-p node:mainnet-avax node:mainnet-eth",
+    "deploy:diamond:avax": "npx hardhat --network mainnet-avax deploy --tags ConfigureDegenX",
+    "deploy:diamond:eth": "npx hardhat --network mainnet-eth deploy --tags ConfigureDegenX",
+    "deploy:diamond:avax:finalize": "npx hardhat --network mainnet-avax deploy --tags FinalizeDegenX",
+    "deploy:atm:eth": "npx hardhat --network mainnet-eth deploy --tags DeployDegenATM",
+    "deploy:launcher:eth": "npx hardhat --network mainnet-eth deploy --tags DeployLaunchProtocol",
+    "coverage": "USE_REAL_ACCOUNTS=false npx hardhat coverage",
     "show-coverage": "npx http-server ./coverage/"
   },
   "devDependencies": {
@@ -44,6 +53,7 @@
     "hardhat-gas-reporter": "^1.0.8",
     "lodash": "^4.17.21",
     "node-fetch": "^2.6.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.8.7",
     "prettier-plugin-solidity": "^1.1.3",
     "solc": "^0.8.19",
