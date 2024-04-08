@@ -4,11 +4,17 @@ pragma solidity ^0.8.19;
 /// @title Fee Generic Facet Interface
 /// @author Daniel <danieldegendev@gmail.com>
 interface IFeeGenericFacet {
+    event Distributed(address indexed account, uint256 amount);
+    event Collected(bytes32 indexed feeId, uint256 amount);
+
     /// @return _is whether the diamond is on the home chain or not
     function feeGenericIsHomeChain() external view returns (bool _is);
 
     /// @return _homeChainId block.chainid of the configured home chain
     function feeGenericGetHomeChainId() external view returns (uint256 _homeChainId);
+
+    /// @return _is true if it's initialized, else false
+    function feeGenericIsInitialized() external view returns (bool _is);
 
     /// Deposits a single fee with native currency
     /// @param _feeId fee id in bytes32

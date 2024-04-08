@@ -14,8 +14,6 @@ const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
 
 const main: DeployFunction = async ({ network, diamond, deployments, getNamedAccounts }: HardhatRuntimeEnvironment) => {
-  const startTime = Date.now();
-
   const { deployer } = await getNamedAccounts();
   const { deploy, log } = deployments;
   const { chainId } = network.config;
@@ -63,6 +61,15 @@ const main: DeployFunction = async ({ network, diamond, deployments, getNamedAcc
   if (celerFeeHubFacetDeployResult.newlyDeployed) {
     await updateDeploymentLogs('CelerFeeHubFacet', celerFeeHubFacetDeployResult, false);
     facets.push(await ethers.getContract('CelerFeeHubFacet'));
+  }
+
+  const genericFacetDeployResult = await deploy('FeeGenericFacet', {
+    from: deployer,
+    log: true,
+  });
+  if (genericFacetDeployResult.newlyDeployed) {
+    await updateDeploymentLogs('FeeGenericFacet', genericFacetDeployResult, false);
+    facets.push(await ethers.getContract('FeeGenericFacet'));
   }
 
   if (isHomeChain) {
@@ -114,7 +121,7 @@ const main: DeployFunction = async ({ network, diamond, deployments, getNamedAcc
   ///
   /// Configure
   ///
-  // @todo skip configuration when contracts already deployed
+  // TODO put this into configureDegenX deployment script
   log(`---------------------------------------------------------------------`);
   log(`Configuration`);
   log(`---------------------------------------------------------------------`);
@@ -199,7 +206,7 @@ const main: DeployFunction = async ({ network, diamond, deployments, getNamedAcc
   }
 
   log(`---------------------------------------------------------------------`);
-  log(`Finished after ${((Date.now() - startTime) / 1000).toPrecision(2)} seconds`);
+  log(`Finished deploying DegenX`);
 };
 
 export default main;

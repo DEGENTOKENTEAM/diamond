@@ -8,8 +8,6 @@ pragma solidity ^0.8.19;
 * Implementation of a diamond.
 /******************************************************************************/
 
-import { LibAccessControlEnumerable } from "./libraries/LibAccessControlEnumerable.sol";
-import { Constants } from "./helpers/Constants.sol";
 import { LibDiamond } from "./libraries/LibDiamond.sol";
 import { IDiamondCut } from "./interfaces/IDiamondCut.sol";
 

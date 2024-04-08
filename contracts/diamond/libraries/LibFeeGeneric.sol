@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { IRouter02 } from "./../interfaces/IRouter02.sol";
 import { INativeWrapper } from "./../interfaces/INativeWrapper.sol";
+import { IFeeGenericFacet } from "./../interfaces/IFeeGenericFacet.sol";
 
 import { LibFeeStore } from "./LibFeeStore.sol";
 import { LibFeeDistributor } from "./LibFeeDistributor.sol";
@@ -22,10 +23,16 @@ library LibFeeGeneric {
     using Address for address payable;
 
     event BountyPaid(uint256 bountyAmount, address indexed bountyReceiver);
+    event Collected(bytes32 indexed feeId, uint256 amount);
 
     /// @return _is true if is home chain, else false
     function isHomeChain() internal view returns (bool _is) {
-        _is = block.chainid == LibFeeGenericStorage.store().homeChainId;
+        _is = LibFeeGenericStorage.store().isHomeChain;
+    }
+
+    /// @return _is true if it's initialized, else false
+    function isInitialized() internal view returns (bool _is) {
+        _is = LibFeeGenericStorage.store().initialized;
     }
 
     /// @return _homeChainId configured home chain id
@@ -55,8 +62,6 @@ library LibFeeGeneric {
         address _bountyReceiver,
         uint256 _bountyShareInBps
     ) internal returns (uint256 _feeAmount, uint256 _bountyAmount) {
-        if (!isHomeChain()) revert WrongChain();
-        if (msg.value == 0) revert ZeroValueNotAllowed();
         _feeAmount = msg.value;
         (_feeAmount, _bountyAmount) = LibFeeDistributor.payoutBountyInNativeWithCustomShare(_feeAmount, _bountyReceiver, _bountyShareInBps);
         FeeConfigSyncHomeDTO memory _updatedDto = FeeConfigSyncHomeDTO({
@@ -80,7 +85,6 @@ library LibFeeGeneric {
         address _bountyReceiver,
         uint256 _bountyShareInBps
     ) internal returns (uint256 _feeAmount, uint256 _bountyAmount) {
-        if (isHomeChain()) revert WrongChain();
         uint256 _amount = msg.value;
 
         if (_bountyShareInBps > 0 && _bountyReceiver != address(0)) {
@@ -90,23 +94,26 @@ library LibFeeGeneric {
             emit BountyPaid(_bountyAmount, _bountyReceiver);
         }
 
-        // convert native to wrapper native, because swapExactTokensForTokens has generic naming and is uniswap v2 pool conform
+        // convert native to native wrapper before because swapExactTokensForTokens is more generic than swapExactAVAX or swapExcatETH
         INativeWrapper(getNativeWrapper()).deposit{ value: _amount }();
 
         IERC20(getNativeWrapper()).approve(getUniswapV2Router(), _amount);
         address[] memory _path = new address[](2);
         _path[0] = getNativeWrapper();
         _path[1] = LibFeeStore.getIntermediateAsset();
-        uint256[] memory amounts = IRouter02(getUniswapV2Router()).swapExactTokensForTokens(
+        uint256[] memory _amountsOut = IRouter02(getUniswapV2Router()).getAmountsOut(_amount, _path);
+        uint256[] memory _amounts = IRouter02(getUniswapV2Router()).swapExactTokensForTokens(
             _amount,
-            (_amount * 9900) / 10 ** 4,
+            (_amountsOut[_amountsOut.length - 1] * 9900) / 10 ** 4, // 1% slippage
             _path,
             address(this),
             block.timestamp + 60
         );
 
-        _feeAmount = amounts[amounts.length - 1];
+        _feeAmount = _amounts[_amounts.length - 1];
 
         LibFeeStore.putFees(_feeId, _feeAmount);
+
+        emit Collected(_feeId, _feeAmount);
     }
 }

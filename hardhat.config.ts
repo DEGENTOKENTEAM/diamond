@@ -37,23 +37,23 @@ const accountsHardhat =
       ]
     : undefined;
 
-const localforkRPCs: { [network: string]: { block: number; url: string; chainId: number } } = {
-  [NETWORK_MAINNET_AVAX]: {
-    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_AVAX}`),
-    block: parseInt(`${process.env.LOCALFORK_BLOCK_AVAX}`),
-    url: `${process.env.LOCALFORK_RPC_AVAX}`,
-  },
-  [NETWORK_MAINNET_ETH]: {
-    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_ETH}`),
-    block: parseInt(`${process.env.LOCALFORK_BLOCK_ETH}`),
-    url: `${process.env.LOCALFORK_RPC_ETH}`,
-  },
-  [NETWORK_HARDHAT]: {
-    chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_ETH}`),
-    block: parseInt(`${process.env.LOCALFORK_BLOCK_ETH}`),
-    url: `${process.env.LOCALFORK_RPC_ETH}`,
-  },
+const localforkAVAX = {
+  chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_AVAX}`),
+  block: parseInt(`${process.env.LOCALFORK_BLOCK_AVAX}`),
+  url: `${process.env.LOCALFORK_RPC_AVAX}`,
 };
+
+const localforkETH = {
+  chainId: parseInt(`${process.env.LOCALFORK_CHAIN_ID_ETH}`),
+  block: parseInt(`${process.env.LOCALFORK_BLOCK_ETH}`),
+  url: `${process.env.LOCALFORK_RPC_ETH}`,
+};
+
+const localforkRPCs: { [network: string]: { block: number; url: string; chainId: number } } = {
+  [NETWORK_MAINNET_AVAX]: { ...localforkAVAX },
+  [NETWORK_MAINNET_ETH]: { ...localforkETH },
+};
+localforkRPCs[NETWORK_HARDHAT] = localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`];
 
 const useLocalforkInstead = process.env.USE_LOCALFORK_INSTEAD !== 'false';
 const localforkUrlAVAX = 'http://127.0.0.1:8545';
@@ -98,44 +98,52 @@ const config: HardhatUserConfig = {
   },
   networks: {
     'testnet-eth': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.TESTNET_ETH_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlETH : `${process.env.TESTNET_ETH_RPC!}`,
       accounts,
     },
     'testnet-avax': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.TESTNET_AVAX_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlAVAX : `${process.env.TESTNET_AVAX_RPC!}`,
       accounts,
     },
     'testnet-bsc': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.TESTNET_BSC_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlBNB : `${process.env.TESTNET_BSC_RPC!}`,
       accounts,
     },
     'mainnet-eth': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.MAINNET_ETH_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlETH : `${process.env.MAINNET_ETH_RPC!}`,
       accounts,
     },
     'mainnet-avax': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.MAINNET_AVAX_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlAVAX : `${process.env.MAINNET_AVAX_RPC!}`,
       gasMultiplier: 1.2,
       accounts,
     },
     'mainnet-bsc': {
+      live: !useLocalforkInstead,
       chainId: parseInt(process.env.MAINNET_BSC_CHAIN_ID!),
       url: useLocalforkInstead ? localforkUrlBNB : `${process.env.MAINNET_BSC_RPC!}`,
       gasMultiplier: 1.2,
       accounts,
     },
     localfork: {
+      live: false,
       saveDeployments: false,
       url: localforkUrlAVAX,
       chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
       accounts,
     },
     hardhat: {
+      live: false,
       saveDeployments: false,
       chainId: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].chainId,
       accounts: accountsHardhat,

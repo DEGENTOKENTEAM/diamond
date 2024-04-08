@@ -1,26 +1,16 @@
-import { ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
 import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { result } from 'lodash';
-import { diamondContractName } from '../utils/diamond';
-import { FEE_DISTRIBUTOR_PUSH_ROLE } from '../test/utils/mocks';
 import { RelayerCeler } from '../typechain-types';
-import { getContractAddress } from '../utils/addresses';
-// import { diamondContractName, getConfig, getContractAddress } from './9999_utils';
+import { diamondContractName } from '../utils/diamond';
 
 const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRuntimeEnvironment) => {
-  const startTime = Date.now();
-
   const { log } = deployments;
   const { chainId } = network.config;
-  const { chainIdHome, chainNameHome, initials, targetChains } = await diamond.getConfig();
-
-  const isHomeChain = chainId === chainIdHome;
+  const { targetChains } = await diamond.getConfig();
 
   const diamondContract = await ethers.getContract(diamondContractName());
   const diamonAddress = await diamondContract.getAddress();
-  // const targetChainId = +process.env.DEPLOY_TARGET_CHAIN_ID!;
 
   log(`---------------------------------------------------------------------`);
   log(`Setup chain id ${chainId}`);
@@ -30,11 +20,7 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
   /// configure fees
   ///
   const relayerCeler: RelayerCeler = await ethers.getContract('RelayerCeler');
-
-  const feeManager = await ethers.getContractAt('FeeManagerFacet', diamonAddress);
   const celerFeeHub = await ethers.getContractAt('CelerFeeHubFacet', diamonAddress);
-  const feeDistributor = await ethers.getContractAt('FeeDistributorFacet', diamonAddress);
-  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamonAddress);
 
   for (const { chainId, relayerAddress } of targetChains) {
     log(`Add relayer ${relayerAddress} as an actor for chain id ${chainId}`);
@@ -76,7 +62,8 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
     }
   }
 
-  log(`Finished after ${Math.floor((Date.now() - startTime) / 1000)} seconds`);
+  log(`---------------------------------------------------------------------`);
+  log(`Finished Finalize DegenX`);
 };
 
 export default main;

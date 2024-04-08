@@ -26,18 +26,6 @@ bytes32 DEPLOYER_ROLE
 bytes32 FEE_MANAGER_ROLE
 ```
 
-### MINTER_ROLE
-
-```solidity
-bytes32 MINTER_ROLE
-```
-
-### BURNER_ROLE
-
-```solidity
-bytes32 BURNER_ROLE
-```
-
 ### FEE_STORE_MANAGER_ROLE
 
 ```solidity

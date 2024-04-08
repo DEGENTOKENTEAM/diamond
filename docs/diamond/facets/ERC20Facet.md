@@ -12,22 +12,16 @@ bytes32 ERC20_FACET_STORAGE_SLOT
 
 Storage Slot
 
-### SetLP
+### AddLP
 
 ```solidity
-event SetLP(address lp)
+event AddLP(address lp)
 ```
 
-### PutFees
+### RemoveLP
 
 ```solidity
-event PutFees()
-```
-
-### ManuallyPutFees
-
-```solidity
-event ManuallyPutFees()
+event RemoveLP(address lp)
 ```
 
 ### ExcludeAccountFromTax
@@ -52,6 +46,12 @@ event FeeAdded(bytes32 id, bool buyFee)
 
 ```solidity
 event FeeRemoved(bytes32 id, bool buyFee)
+```
+
+### BridgeSupplyCapUpdated
+
+```solidity
+event BridgeSupplyCapUpdated(address bridge, uint256 cap)
 ```
 
 ### FeeIdAlreadySet
@@ -84,18 +84,38 @@ error InvalidFeeId(bytes32 id)
 error NoBurnPossible()
 ```
 
+### BridgeSupplyExceeded
+
+```solidity
+error BridgeSupplyExceeded(uint256 candidate, uint256 supply)
+```
+
+### AddressNoContract
+
+```solidity
+error AddressNoContract(address candidate)
+```
+
+### BridgeSupply
+
+```solidity
+struct BridgeSupply {
+  uint256 cap;
+  uint256 total;
+}
+```
+
 ### ERC20FacetStorage
 
 ```solidity
 struct ERC20FacetStorage {
-  address lp;
-  bool isMinter;
-  bool isBurner;
   bool initialized;
   bytes32[] buyFee;
   bytes32[] sellFee;
+  mapping(address => bool) lps;
   mapping(address => bool) excludes;
   mapping(bytes32 => uint256) fees;
+  mapping(address => struct ERC20Facet.BridgeSupply) bridges;
 }
 ```
 
@@ -118,11 +138,11 @@ Initializes the contract
 ### mint
 
 ```solidity
-function mint(address _to, uint256 _amount) external
+function mint(address _to, uint256 _amount) external returns (bool _success)
 ```
 
 Minting an amount of tokens for a designated receiver
-This can only be executed by the MINTER_ROLE which will be bridge related contracts
+It allows to mint specified amount until the bridge supply cap is reached
 
 #### Parameters
 
@@ -131,13 +151,41 @@ This can only be executed by the MINTER_ROLE which will be bridge related contra
 | _to | address | receiver address of the token |
 | _amount | uint256 | receiving amount |
 
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _success | bool | Returns true is operation succeeds |
+
 ### burn
 
 ```solidity
-function burn(address _from, uint256 _amount) external
+function burn(uint256 _amount) external returns (bool _success)
+```
+
+Burning an amount of tokens from sender
+It allows to burn a bridge supply until its supply is 0, even if the cap is already set to 0
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _amount | uint256 | burnable amount |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _success | bool | Returns true is operation succeeds |
+
+### burn
+
+```solidity
+function burn(address _from, uint256 _amount) external returns (bool _success)
 ```
 
 Burning an amount of tokens from a designated holder
+It allows to burn a bridge supply until its supply is 0, even if the cap is already set to 0
 
 #### Parameters
 
@@ -145,6 +193,34 @@ Burning an amount of tokens from a designated holder
 | ---- | ---- | ----------- |
 | _from | address | holder address to burn the tokens from |
 | _amount | uint256 | burnable amount |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _success | bool | Returns true is operation succeeds |
+
+### burnFrom
+
+```solidity
+function burnFrom(address _from, uint256 _amount) external returns (bool _success)
+```
+
+Burning an amount of tokens from a designated holder
+It allows to burn a bridge supply until its supply is 0, even if the cap is already set to 0
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _from | address | holder address to burn the tokens from |
+| _amount | uint256 | burnable amount |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _success | bool | Returns true is operation succeeds |
 
 ### enable
 
@@ -162,13 +238,27 @@ function disable() external
 
 This disables the transfers of this tokens
 
-### setLP
+### addLP
 
 ```solidity
-function setLP(address _lp) external
+function addLP(address _lp) external
 ```
 
-Sets the liquidity pool address
+Adds a liquidity pool address
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _lp | address | address of the liquidity pool of the token |
+
+### removeLP
+
+```solidity
+function removeLP(address _lp) external
+```
+
+Removes a liquidity pool address
 
 #### Parameters
 
@@ -260,6 +350,21 @@ Removes a sell fee based on a fee id
 | ---- | ---- | ----------- |
 | _id | bytes32 | fee id |
 
+### updateBridgeSupplyCap
+
+```solidity
+function updateBridgeSupplyCap(address _bridge, uint256 _cap) external
+```
+
+Updates a supply cap for a specified bridge
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _bridge | address | address of the bridge |
+| _cap | uint256 | supply cap of the bridge |
+
 ### isExcluded
 
 ```solidity
@@ -302,19 +407,19 @@ Check whether a fee id is a sell fee or not
 | ---- | ---- | ----------- |
 | _id | bytes32 | fee id |
 
-### getLP
+### hasLP
 
 ```solidity
-function getLP() external view returns (address _lp)
+function hasLP(address _lp) external view returns (bool _has)
 ```
 
-Returns the address of the currently set liquidity pool
+Returns the existence of an lp address
 
 #### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _lp | address | address of the liquidity pool |
+| _has | bool | has lp or not |
 
 ### getBuyFees
 
@@ -343,6 +448,40 @@ Returns all sell fee ids
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _fees | bytes32[] | array of fee ids |
+
+### bridges
+
+```solidity
+function bridges(address _bridge) external view returns (struct ERC20Facet.BridgeSupply _supply)
+```
+
+Returns the supply information of the given bridge
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _bridge | address | address of the bridge |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _supply | struct ERC20Facet.BridgeSupply | bridge supply |
+
+### getOwner
+
+```solidity
+function getOwner() external view returns (address _owner)
+```
+
+Returns the owner address
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _owner | address | owner address |
 
 ### _isFee
 
@@ -395,16 +534,6 @@ Removes a fee based on a fee id and a flag if it should be removed as buy fee or
 | _id | bytes32 | fee id |
 | _isBuyFee | bool | flag if fee id should be processed as buy fee or sell fee |
 
-### _beforeTokenTransfer
-
-```solidity
-function _beforeTokenTransfer(address from, address to, uint256 amount) internal
-```
-
-The execution is successful when the contract is enabled.
-        Furthermore it will also check if the receiver address is a burn address,
-        so it will be prevented from burning by a unallowed account.
-
 ### _transfer
 
 ```solidity
@@ -425,6 +554,45 @@ During this process, it will be checked if the provided address are a liquidity 
 | _from | address | holder address |
 | _to | address | receiver address |
 | _amount | uint256 | amount of tokens to transfer |
+
+### _burnFrom
+
+```solidity
+function _burnFrom(address _from, uint256 _amount) internal returns (bool)
+```
+
+Internal method to burn a specified amount of tokens for an address
+
+_It checks if there is an exceeded amount of tokens tried to be burned for a specific bridge_
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _from | address | address to burn from |
+| _amount | uint256 | amount to burn |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | Returns true is it succeeds |
+
+### _beforeTokenTransfer
+
+```solidity
+function _beforeTokenTransfer(address from, address to, uint256 amount) internal
+```
+
+ERC20 hook, called before all transfers including mint and burn
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | address | sender of tokens |
+| to | address | receiver of tokens |
+| amount | uint256 | quantity of tokens transferred |
 
 ### _store
 

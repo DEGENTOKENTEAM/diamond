@@ -259,13 +259,13 @@ function lockLeave() external
 ```
 
 Leaves the lock of the tokens
-The sender will leave the locked state if he has joined it.  
-After leaving, he will auto claim the tokens and not be able to join the lock anymore.  
-The sender can leave at any time. Before the lock period, he has not gained any rewards  
-and claims only his initial allocated amount of tokens. If the lock period has started  
-and not ended yet, the sender will receive his initial allocated tokens with 30% of the  
-rewards, because of the desined penalty when leaving the locked state before end of period.  
-After the lock period has ended, the sender will receive the allocated amount of tokens  
+The sender will leave the locked state if he has joined it.
+After leaving, he will auto claim the tokens and not be able to join the lock anymore.
+The sender can leave at any time. Before the lock period, he has not gained any rewards
+and claims only his initial allocated amount of tokens. If the lock period has started
+and not ended yet, the sender will receive his initial allocated tokens with 30% of the
+rewards, because of the desined penalty when leaving the locked state before end of period.
+After the lock period has ended, the sender will receive the allocated amount of tokens
 and the full amount of rewards.
 
 ### StatsForQualifier
@@ -295,17 +295,17 @@ function getStatsForQualifier(address _qualifier) external view returns (struct 
 
 Returns atm stats for a given qualifier
 
-_`isWhitelisted` flag if the qualifier is whitelisted or not  
-`hasClaimed` flag if the qualifier has claimed his tokens  
-`hasLocked` flag if the qualifier has locked his tokens  
-`tokenBalance` qualifiers balance of the token  
-`lockedAmount` amount of locked tokens  
-`claimedAmount` amount of claimed tokens  
-`totalDeposited` amount of deposited native  
-`currentRewardAmount` returns the current reward amount (only if lock period has started, else 0)  
-`currentPenaltyAmount` returns the current penalty amount if the qualifier leaves the lock (only if lock period has started, else 0)  
-`currentRewardAmountNet` returns the current rewart amount excl. penalty amount (only if lock period has started, else 0)  
-`estimatedTotalRewardAmount` potential amount of rewards qualifier receives after whole lock period  
+_`isWhitelisted` flag if the qualifier is whitelisted or not
+`hasClaimed` flag if the qualifier has claimed his tokens
+`hasLocked` flag if the qualifier has locked his tokens
+`tokenBalance` qualifiers balance of the token
+`lockedAmount` amount of locked tokens
+`claimedAmount` amount of claimed tokens
+`totalDeposited` amount of deposited native
+`currentRewardAmount` returns the current reward amount (only if lock period has started, else 0)
+`currentPenaltyAmount` returns the current penalty amount if the qualifier leaves the lock (only if lock period has started, else 0)
+`currentRewardAmountNet` returns the current rewart amount excl. penalty amount (only if lock period has started, else 0)
+`estimatedTotalRewardAmount` potential amount of rewards qualifier receives after whole lock period
 `estimatedTotalClaimAmount` potential total amount (accumulated + rewards) which the qualifier will receive after whole lock period_
 
 #### Parameters
@@ -337,9 +337,9 @@ struct Stats {
   uint256 estimatedTotalLockedTokensRewards;
   uint256 estimatedTotalLockedTokensPayouts;
   uint256 estimatedTotalTokensPayout;
-  uint256 lockPeriodInSeconds;
   uint256 lockPeriodStarts;
   uint256 lockPeriodEnds;
+  uint256 lockPeriodInSeconds;
   uint256 rewardPenaltyBps;
   uint256 totalRewardBps;
 }
@@ -353,23 +353,23 @@ function getStats() external view returns (struct DegenATM.Stats _stats)
 
 Returns general atm stats
 
-_`collecting` flag if the native token collection has started or not  
-`claiming` flag if the claiming has started or not (will enable claiming and locking functionality)  
-`lockPeriodActive` flag is the lock period has started  
-`token` address of the token  
-`tokenBalance` contract balance of the token  
-`allocationLimit` defined alloctaion limit  
-`tokensPerOneNative` defined tokens per one native  
-`totalDeposits` total amount of native deposits  
-`totalLockedTokens` total amount of locked tokens  
-`totalClaimedTokens` total amount of claimed tokens  
-`estimatedTotalLockedTokensRewards` estimated amount of total rewards paid for current locked tokens  
-`estimatedTotalLockedTokensPayouts` estimated amount of tokens incl. rewards which are getting paid out  
-`estimatedTotalTokensPayout` estimated amount of ALL possible paid out tokens (claimed + locked + rewards)  
-`lockPeriodInSeconds` lock period in seconds which result in 365d or 1y  
-`lockPeriodStarts` the timestamp when the lock period starts  
-`lockPeriodEnds` the timestamp when the lock period ends  
-`rewardPenaltyBps` % loyalty penalty in basis points  
+_`collecting` flag if the native token collection has started or not
+`claiming` flag if the claiming has started or not (will enable claiming and locking functionality)
+`lockPeriodActive` flag is the lock period has started
+`token` address of the token
+`tokenBalance` contract balance of the token
+`allocationLimit` defined alloctaion limit
+`tokensPerOneNative` defined tokens per one native
+`totalDeposits` total amount of native deposits
+`totalLockedTokens` total amount of locked tokens
+`totalClaimedTokens` total amount of claimed tokens
+`estimatedTotalLockedTokensRewards` estimated amount of total rewards paid for current locked tokens
+`estimatedTotalLockedTokensPayouts` estimated amount of tokens incl. rewards which are getting paid out
+`estimatedTotalTokensPayout` estimated amount of ALL possible paid out tokens (claimed + locked + rewards)
+`lockPeriodStarts` the timestamp when the lock period starts
+`lockPeriodEnds` the timestamp when the lock period ends
+`lockPeriodInSeconds` lock period in seconds which result in 365d or 1y
+`rewardPenaltyBps` % loyalty penalty in basis points
 `totalRewardBps` % reward in basis points_
 
 #### Return Values

@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import * as dotenv from 'dotenv';
 import { expand as dotenvExpand } from 'dotenv-expand';
 import { ZeroAddress, parseEther } from 'ethers';
-import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
+import { deployments, diamond, ethers, getNamedAccounts, network } from 'hardhat';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets } from '../scripts/helpers/diamond';
 import { ERC20Facet, LaunchControl, MinterBurnerMock } from '../typechain-types';
@@ -24,8 +24,16 @@ const deployFixture = async () => {
   const { deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
 
+  const { contracts } = await diamond.getProtocols();
+  const routerAddress = contracts.degenx.router.address;
+  const nativeWrapper = contracts.degenx.nativeWrapper.address;
+
   // deploy launcher
-  const { address: launchAddress } = await deploy('LaunchControl', { from: deployer, skipIfAlreadyDeployed: false });
+  const { address: launchAddress } = await deploy('LaunchControl', {
+    from: deployer,
+    skipIfAlreadyDeployed: false,
+    args: [nativeWrapper],
+  });
   const launch = await ethers.getContractAt('LaunchControl', launchAddress);
 
   // deploy minter (needs to be contract)
@@ -55,6 +63,7 @@ const deployFixture = async () => {
     deployerSigner,
     diamondAddress,
     launchAddress,
+    routerAddress,
     msig,
     minter,
     launch,
@@ -63,7 +72,10 @@ const deployFixture = async () => {
 };
 
 describe('LaunchControl', function () {
-  let deployer: string, diamondAddress: string, launchAddress: string;
+  let deployer: string;
+  let launchAddress: string;
+  let routerAddress: string;
+  let diamondAddress: string;
   let msig: SignerWithAddress;
   let deployerSigner: SignerWithAddress;
   let minter: MinterBurnerMock;
@@ -72,7 +84,7 @@ describe('LaunchControl', function () {
   let snapshotId: any;
 
   beforeEach(async function () {
-    ({ deployer, diamondAddress, launchAddress, msig, launch, erc20Facet, minter, deployerSigner } =
+    ({ deployer, diamondAddress, launchAddress, msig, launch, erc20Facet, minter, deployerSigner, routerAddress } =
       await deployFixture());
     snapshotId = await network.provider.send('evm_snapshot');
   });
@@ -95,14 +107,15 @@ describe('LaunchControl', function () {
 
   describe('Configuration', function () {
     it('should set a router', async function () {
-      await launch.setRouter(router);
-      expect(await launch.router()).to.eq(router);
+      await launch.setRouter(routerAddress);
+      expect(await launch.router()).to.eq(routerAddress);
     });
 
     it('should set a token', async function () {
       await expect(launch.setToken(diamondAddress)).to.be.revertedWith('missing router');
-      await launch.setRouter(router);
+      await launch.setRouter(routerAddress);
       await launch.setToken(diamondAddress);
+      await launch.setToken(diamondAddress); // set twice to check wheter it retrieves the existing pair
       expect(await launch.token()).to.eq(diamondAddress);
       const lp = await launch.lp();
       expect(lp).to.not.eq(ZeroAddress);
@@ -121,7 +134,7 @@ describe('LaunchControl', function () {
   });
   describe('Launch', function () {
     beforeEach(async function () {
-      await launch.setRouter(router);
+      await launch.setRouter(routerAddress);
     });
 
     it('should add liquidity to a pair', async function () {
@@ -210,7 +223,7 @@ describe('LaunchControl', function () {
       await minter.mint(await erc20Facet.getAddress(), launchAddress, parseEther('11'));
 
       await launch.setLpTokenReceiver(deployer);
-      await launch.setRouter(router);
+      await launch.setRouter(routerAddress);
       await launch.setStartPoolWithToken(parseEther('10'));
       await launch.setStartPoolWithNative(parseEther('10'));
       await deployerSigner.sendTransaction({

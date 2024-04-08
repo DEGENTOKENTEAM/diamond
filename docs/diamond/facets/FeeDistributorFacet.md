@@ -4,12 +4,6 @@
 
 It is responsible for distributing received fees to its configured receivers
 
-### STORAGE_NAMESPACE
-
-```solidity
-bytes32 STORAGE_NAMESPACE
-```
-
 ### ReceiverAdded
 
 ```solidity
@@ -76,12 +70,6 @@ event BountyShareUpdated(uint64 share)
 event PushFeesGasCompensationForCallerUpdate(uint256 amountInWei)
 ```
 
-### BountyPaid
-
-```solidity
-event BountyPaid(uint256 amount, address receiver)
-```
-
 ### BountyPaidFailed
 
 ```solidity
@@ -118,12 +106,6 @@ error WrongData()
 error WrongToken()
 ```
 
-### MissingData
-
-```solidity
-error MissingData()
-```
-
 ### FailedStartMissingShares
 
 ```solidity
@@ -136,39 +118,10 @@ error FailedStartMissingShares()
 error InvalidSwapPath()
 ```
 
-### Share
+### onlyFeeDistributorManager
 
 ```solidity
-struct Share {
-  string name;
-  uint64 points;
-  address receiver;
-  address[] swap;
-}
-```
-
-### Storage
-
-```solidity
-struct Storage {
-  struct FeeDistributorFacet.Share[] shares;
-  struct FeeConfigSyncHomeDTO[] queue;
-  mapping(address => uint256) shareIndex;
-  uint64 totalPoints;
-  address baseToken;
-  address nativeWrapper;
-  address router;
-  uint256 pushFeesGasCompensationForCaller;
-  uint64 bountyShare;
-  address bountyReceiver;
-  address lastBountyReceiver;
-  uint256 lastBountyAmount;
-  uint256 totalBounties;
-  bool running;
-  bool bountyActive;
-  bool bountyInToken;
-  bool initialized;
-}
+modifier onlyFeeDistributorManager()
 ```
 
 ### initFeeDistributorFacet
@@ -211,6 +164,31 @@ if the token doesn't match, it will fail._
 | _token | address | the token address being received |
 | _amount | uint256 | amount of tokens being received |
 | _dto | struct FeeConfigSyncHomeDTO | the dto of the fee store to determine the split of _amount |
+
+### feeDistributorDepositSingleFeeNative
+
+```solidity
+function feeDistributorDepositSingleFeeNative(bytes32 _feeId, address _bountyReceiver, uint256 _bountyShareInBps) external payable returns (uint256 _amount, uint256 _bountyAmount)
+```
+
+Distributes a single native fee
+
+_the fee receiver should to have defined a proper swapping path_
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _feeId | bytes32 | id of the fee |
+| _bountyReceiver | address | address of the bounty receiver |
+| _bountyShareInBps | uint256 | percentage share in bps |
+
+#### Return Values
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _amount | uint256 | fee amount that has been paid (excl. bounty) |
+| _bountyAmount | uint256 | bounty that has been paid |
 
 ### addFeeDistributionReceiver
 
@@ -424,7 +402,7 @@ _Gets all items in queue_
 ### getFeeDistributorReceivers
 
 ```solidity
-function getFeeDistributorReceivers() external view returns (struct FeeDistributorFacet.Share[] _shares)
+function getFeeDistributorReceivers() external view returns (struct LibFeeDistributorStorage.Share[] _shares)
 ```
 
 _Gets all shares_
@@ -433,7 +411,7 @@ _Gets all shares_
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _shares | struct FeeDistributorFacet.Share[] | array of configured shares |
+| _shares | struct LibFeeDistributorStorage.Share[] | array of configured shares |
 
 ### getFeeDistributorLastBounty
 
@@ -478,71 +456,17 @@ _Gets the total bounties being paid_
 | ---- | ---- | ----------- |
 | _totalBounties | uint256 | total bounties |
 
-### _pushFees
+### feeDistributorIsInitialized
 
 ```solidity
-function _pushFees(struct FeeConfigSyncHomeDTO _dto) internal
+function feeDistributorIsInitialized() external view returns (bool _is)
 ```
 
-Distributes the fees to the desired receivers based on their share
+_Checks whether the fee distributor is initialized or not_
 
-_If the distribution is running, it'll distribute it directly, otherwise it will be queued up and distributed once the distirbution is enabled_
-
-#### Parameters
+#### Return Values
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _dto | struct FeeConfigSyncHomeDTO | a dto that needs to be synced |
-
-### _distribute
-
-```solidity
-function _distribute(address _receiver, uint256 _amount) internal
-```
-
-Distributes the fees to the desired addresses
-
-_If the receiver is address(0), the funds will be distributed to all defined shares based on their points and desired swap
-If the receiver is not address(0), the funds will be directly send to the address_
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _receiver | address | address of the receiver, can be address(0) |
-| _amount | uint256 | amount of tokens being distributed |
-
-### _setRunning
-
-```solidity
-function _setRunning(bool _running) internal
-```
-
-Set the the running state of the distributor
-
-#### Parameters
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _running | bool | flag |
-
-### _payoutBountyInToken
-
-```solidity
-function _payoutBountyInToken(address _token, uint256 _amount, address _receiver) internal returns (uint256 _amountLeft)
-```
-
-### _payoutBountyInNative
-
-```solidity
-function _payoutBountyInNative(uint256 _amount, address _receiver) internal returns (uint256 _amountLeft)
-```
-
-### _store
-
-```solidity
-function _store() internal pure returns (struct FeeDistributorFacet.Storage s)
-```
-
-Store
+| _is | bool | true on initialized state, false if not |
 

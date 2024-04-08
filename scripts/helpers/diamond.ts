@@ -1,10 +1,10 @@
-import { Contract, Fragment, FunctionFragment, ZeroAddress } from 'ethers';
+import { BaseContract, Contract, Fragment, FunctionFragment, ZeroAddress } from 'ethers';
 import { deployments, ethers } from 'hardhat';
 import { IDiamondLoupe } from './../../typechain-types';
 
 const verbose = false;
 
-export function getSelectors(contract: Contract): string[] {
+export function getSelectors(contract: BaseContract | Contract): string[] {
   const selectors = contract.interface.fragments.reduce((acc: string[], val: Fragment) => {
     if (val.type === 'function') {
       acc.push((val as FunctionFragment).selector);
@@ -23,7 +23,7 @@ export const FacetCutAction = {
 };
 
 export async function addOrReplaceFacets(
-  facets: Contract[],
+  facets: (BaseContract | Contract)[],
   diamondAddress: string,
   initContract: string = ZeroAddress,
   initData = '0x',
@@ -79,7 +79,7 @@ export async function addOrReplaceFacets(
 }
 
 export async function addFacets(
-  facets: Contract[],
+  facets: (BaseContract | Contract)[],
   diamondAddress: string,
   initContract: string = ZeroAddress,
   initData = '0x',
@@ -128,7 +128,7 @@ export async function removeFacet(selectors: string[], diamondAddress: string, s
 }
 
 export async function replaceFacet(
-  facet: Contract,
+  facet: BaseContract | Contract,
   diamondAddress: string,
   initContract: string = ZeroAddress,
   initData = '0x',

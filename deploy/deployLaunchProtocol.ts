@@ -11,9 +11,7 @@ import { getConfig, updateDeploymentLogs } from './9999_utils';
 const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
 
-const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: HardhatRuntimeEnvironment) => {
-  const startTime = Date.now();
-
+const main: DeployFunction = async ({ deployments, getNamedAccounts, network, diamond }: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
   const { deploy, log } = deployments;
   const { chainId } = network.config;
@@ -25,6 +23,12 @@ const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: 
   const accountsConfig = getConfig('accounts');
   const contractsConfig = getConfig('contracts');
 
+  const {
+    contracts: {
+      degenx: { nativeWrapper },
+    },
+  } = await diamond.getProtocols();
+
   const lpTokenReceiver = result(accountsConfig, `${chainId}.lpTokenReceiver`, deployer);
   const router = result(contractsConfig, `${chainId}.router`, ZeroAddress);
 
@@ -35,6 +39,7 @@ const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: 
   const deployResult = await deploy('LaunchControl', {
     from: deployer,
     log: true,
+    args: [nativeWrapper.address],
   });
   const { address: launchControlAddress } = deployResult;
   const launchControl = await ethers.getContractAt('LaunchControl', launchControlAddress);
@@ -86,8 +91,7 @@ const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: 
     log('✅ already set');
   }
   log(`---------------------------------------------------------------------`);
-
-  log(`Finished after ${((Date.now() - startTime) / 1000).toPrecision(2)} seconds`);
+  log(`Finished deploying Launch Protocol`);
 };
 
 export default main;

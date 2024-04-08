@@ -66,3 +66,9 @@ error UnexpectedBalance()
 error FailToSendNative()
 ```
 
+## MissingData
+
+```solidity
+error MissingData()
+```
+

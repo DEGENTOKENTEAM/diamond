@@ -140,6 +140,14 @@ USE_LOCALFORK_INSTEAD=true npx hardhat deploy --network mainnet-eth --tags Deplo
 yarn test
 ```
 
+### Testing with DEBUG namespace
+
+This will give you more insights about the deployment process while executing a hardhat task that makes use of hardhat deploy scripts
+
+```bash
+DEBUG=hardhat:wighawag:hardhat-deploy yarn test
+```
+
 ### Test Coverage Report
 
 Create a report for all files

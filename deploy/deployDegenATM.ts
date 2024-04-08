@@ -9,12 +9,10 @@ const dotEnvConfig = dotenv.config();
 dotenvExpand(dotEnvConfig);
 
 const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: HardhatRuntimeEnvironment) => {
-  const startTime = Date.now();
-  const allocationLimit = parseEther('13');
-
   const { deployer } = await getNamedAccounts();
   const { deploy, log } = deployments;
   const { chainId } = network.config;
+  const allocationLimit = parseEther('13');
 
   log(`---------------------------------------------------------------------`);
   log(`Deploy Degen ATM on Chain ID ${chainId}`);
@@ -44,8 +42,7 @@ const main: DeployFunction = async ({ deployments, getNamedAccounts, network }: 
     log('✅ already set');
   }
   log(`---------------------------------------------------------------------`);
-
-  log(`Finished after ${((Date.now() - startTime) / 1000).toPrecision(2)} seconds`);
+  log(`Finished deploying Degen ATM`);
 };
 
 export default main;

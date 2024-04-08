@@ -50,13 +50,25 @@ address lpTokenReceiver
 address token
 ```
 
+### nativeWrapper
+
+```solidity
+address nativeWrapper
+```
+
+### constructor
+
+```solidity
+constructor(address _nativeWrapper) public
+```
+
+admin
+
 ### recover
 
 ```solidity
 function recover(address _asset) external
 ```
-
-admin
 
 ### setRouter
 

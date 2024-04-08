@@ -1,10 +1,9 @@
 import * as dotenv from 'dotenv';
 import { expand as dotenvExpand } from 'dotenv-expand';
-import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { addOrReplaceFacets, executeInit } from '../scripts/helpers/diamond';
+import { addFacets, addOrReplaceFacets, executeInit } from '../scripts/helpers/diamond';
 import { diamondContractName } from '../utils/diamond';
 import { updateDeploymentLogs } from './9999_utils';
 const dotEnvConfig = dotenv.config();
@@ -16,6 +15,12 @@ const main: DeployFunction = async ({ network, deployments, getNamedAccounts }: 
   const { chainId } = network.config;
 
   log(`---------------------------------------------------------------------`);
+  log(`⚠️  WARNING ⚠️  Deploying to ${network.live ? 'mainnet' : 'a localfork of the mainnet'}`);
+  log(
+    `⚠️  WARNING ⚠️  If this is not intended, set the USE_LOCALFORK_INSTEAD env var to ${
+      network.live ? 'true' : 'false'
+    }`
+  );
   log(`Deploy ${diamondContractName()} Diamond on Chain ID: ${chainId}`);
   log(`---------------------------------------------------------------------`);
 
@@ -38,27 +43,24 @@ const main: DeployFunction = async ({ network, deployments, getNamedAccounts }: 
   const diamondLoupeFacet = await deploy('DiamondLoupeFacet', {
     from: deployer,
     log: true,
-    skipIfAlreadyDeployed: true,
   });
   if (diamondLoupeFacet.newlyDeployed) {
     await updateDeploymentLogs('DiamondLoupeFacet', diamondLoupeFacet, false);
-    await addOrReplaceFacets([(await ethers.getContract('DiamondLoupeFacet')) as Contract], diamond.address);
+    await addFacets([await ethers.getContract('DiamondLoupeFacet')], diamond.address);
   }
 
   const accessControlEnumerableFacet = await deploy('AccessControlEnumerableFacet', {
     from: deployer,
     log: true,
-    skipIfAlreadyDeployed: true,
   });
   if (accessControlEnumerableFacet.newlyDeployed) {
     await updateDeploymentLogs('AccessControlEnumerableFacet', accessControlEnumerableFacet, false);
-    await addOrReplaceFacets([(await ethers.getContract('AccessControlEnumerableFacet')) as Contract], diamond.address);
+    await addOrReplaceFacets([await ethers.getContract('AccessControlEnumerableFacet')], diamond.address);
   }
 
   const diamondInit = await deploy('DiamondInit', {
     from: deployer,
     log: true,
-    skipIfAlreadyDeployed: true,
   });
   if (diamondInit.newlyDeployed) {
     await updateDeploymentLogs('DiamondInit', diamondInit, false);
@@ -77,4 +79,5 @@ const main: DeployFunction = async ({ network, deployments, getNamedAccounts }: 
 export default main;
 
 main.id = 'deployDiamond';
+main.dependencies = ['FundAccounts'];
 main.tags = ['InitialDeploy'];

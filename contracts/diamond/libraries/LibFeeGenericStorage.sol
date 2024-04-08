@@ -11,6 +11,7 @@ library LibFeeGenericStorage {
         uint256 homeChainId;
         address nativeWrapper;
         address uniswapV2Router;
+        bool isHomeChain;
         bool initialized;
     }
 

@@ -1,34 +1,30 @@
-import { ZeroAddress, keccak256, toUtf8Bytes } from 'ethers';
 import { ethers } from 'hardhat';
 import { DeployFunction } from 'hardhat-deploy/types';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { result } from 'lodash';
-import { diamondContractName } from '../utils/diamond';
 import { FEE_DISTRIBUTOR_PUSH_ROLE } from '../test/utils/mocks';
 import { RelayerCeler } from '../typechain-types';
 import { getContractAddress } from '../utils/addresses';
-// import { diamondContractName, getConfig, getContractAddress } from './9999_utils';
+import { diamondContractName } from '../utils/diamond';
 
 const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRuntimeEnvironment) => {
-  const startTime = Date.now();
-
   const { log } = deployments;
   const { chainId } = network.config;
   const { chainIdHome, chainNameHome, initials } = await diamond.getConfig();
+  const { contracts } = await diamond.getProtocols();
 
   const isHomeChain = chainId === chainIdHome;
 
   const diamondContract = await ethers.getContract(diamondContractName());
-  const diamonAddress = await diamondContract.getAddress();
+  const diamondAddress = await diamondContract.getAddress();
 
   log(`---------------------------------------------------------------------`);
   log(`Setup chain id ${chainId}`);
   log(`---------------------------------------------------------------------`);
 
   const relayerCeler: RelayerCeler = await ethers.getContract('RelayerCeler');
-  const feeManager = await ethers.getContractAt('FeeManagerFacet', diamonAddress);
-  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamonAddress);
-  const feeDistributor = await ethers.getContractAt('FeeDistributorFacet', diamonAddress);
+  const feeManager = await ethers.getContractAt('FeeManagerFacet', diamondAddress);
+  const accessControl = await ethers.getContractAt('AccessControlEnumerableFacet', diamondAddress);
+  const feeDistributor = await ethers.getContractAt('FeeDistributorFacet', diamondAddress);
 
   if (isHomeChain) {
     log(`Configure Fee Manager`);
@@ -119,9 +115,30 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
       await (await relayerCeler.addActor(chainIdHome, relayerAddressHome)).wait();
       log(`✅ added`);
     }
+    log(`---------------------------------------------------------------------`);
   }
 
-  console.log(`Finished after ${Math.floor((Date.now() - startTime) / 1000)} seconds`);
+  {
+    log(`Configure and Initialize Fee Generic`);
+    const facet = await ethers.getContractAt('FeeGenericFacet', diamondAddress);
+    const isInitialized = await facet.feeGenericIsInitialized();
+    if (isInitialized) {
+      log('✅ already initialized');
+    } else {
+      await (
+        await facet.initFeeGenericFacet(
+          chainIdHome,
+          contracts.degenx.nativeWrapper.address,
+          contracts.degenx.router.address,
+          isHomeChain
+        )
+      ).wait();
+      log(`✅ initialized`);
+    }
+
+    log(`---------------------------------------------------------------------`);
+    log(`Finish Configure DegenX`);
+  }
 };
 
 export default main;
