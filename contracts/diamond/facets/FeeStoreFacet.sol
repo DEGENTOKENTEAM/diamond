@@ -151,9 +151,7 @@ contract FeeStoreFacet is IFeeStoreFacet {
 
     /// viewables
 
-    /// Gets a fee store config based on the fee id
-    /// @param _id fee config id
-    /// @return _feeStoreConfig FeeStoreConfig, see {contracts/diamond/helpers/Structs.sol#FeeStoreConfig}
+    /// @inheritdoc IFeeStoreFacet
     function getFeeStoreConfig(bytes32 _id) external view returns (FeeStoreConfig memory _feeStoreConfig) {
         _feeStoreConfig = _store().feeConfigs[_id];
     }

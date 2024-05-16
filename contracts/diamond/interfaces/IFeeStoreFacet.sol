@@ -13,4 +13,9 @@ interface IFeeStoreFacet {
     /// Restores fees which are actually intended to be sent to the home chain
     /// @param _dto data which is primarily used for sending fees to the home chain
     function restoreFeesFromSendFees(FeeConfigSyncHomeDTO memory _dto) external payable;
+
+    /// Gets a fee store config based on the fee id
+    /// @param _id fee config id
+    /// @return _feeStoreConfig FeeStoreConfig, see {contracts/diamond/helpers/Structs.sol#FeeStoreConfig}
+    function getFeeStoreConfig(bytes32 _id) external view returns (FeeStoreConfig memory _feeStoreConfig);
 }

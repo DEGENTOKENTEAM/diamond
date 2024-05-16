@@ -27,4 +27,8 @@ interface IFeeGenericFacet {
         address _bountyReceiver,
         uint256 _bountyShareInBps
     ) external payable returns (uint256 _feeAmount, uint256 _bountyAmount);
+
+    /// Response the value of the fee
+    /// @param _feeId fee id in bytes32
+    function feeGenericGetFee(bytes32 _feeId) external view returns (uint256 _fee);
 }

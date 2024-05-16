@@ -139,7 +139,7 @@ const config: HardhatUserConfig = {
       live: false,
       saveDeployments: false,
       url: localforkUrlAVAX,
-      chainId: parseInt(process.env.LOCALFORK_CHAIN_ID!),
+      chainId: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].chainId,
       accounts,
     },
     hardhat: {

@@ -37,7 +37,7 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
         await (await feeManager.addChain({ chainId, target })).wait();
         log(`✅ added`);
       } catch (e) {
-        if ((e as Error).message.includes('ChainIdExists')) {
+        if ((e as Error).message.includes('ChainIdExists') || (e as Error).message.includes('0x92ffa31d')) {
           log(`✅ already existing`);
         } else {
           log('❌ There was an unexpected error: %s', (e as Error).message);

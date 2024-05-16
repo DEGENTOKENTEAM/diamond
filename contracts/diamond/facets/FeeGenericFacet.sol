@@ -6,6 +6,7 @@ import { IFeeGenericFacet } from "./../interfaces/IFeeGenericFacet.sol";
 import { LibFeeGenericStorage } from "./../libraries/LibFeeGenericStorage.sol";
 import { LibAccessControlEnumerable } from "./../libraries/LibAccessControlEnumerable.sol";
 import { Constants } from "./../helpers/Constants.sol";
+import { FeeConfig } from "./../helpers/Structs.sol";
 import { AlreadyInitialized, ZeroValueNotAllowed } from "./../helpers/GenericErrors.sol";
 import { addressZeroCheck } from "./../helpers/Functions.sol";
 
@@ -55,5 +56,9 @@ contract FeeGenericFacet is IFeeGenericFacet {
         (_feeAmount, _bountyAmount) = LibFeeGeneric.isHomeChain()
             ? LibFeeGeneric.depositSingleFeeNativeOnHomeChain(_feeId, _bountyReceiver, _bountyShareInBps)
             : LibFeeGeneric.depositSingleFeeNativeOnTargetChain(_feeId, _bountyReceiver, _bountyShareInBps);
+    }
+
+    function feeGenericGetFee(bytes32 _feeId) external view returns (uint256 _fee) {
+        _fee = LibFeeGeneric.isHomeChain() ? LibFeeGeneric.getFeeOnHomeChain(_feeId) : LibFeeGeneric.getFeeOnTargetChain(_feeId);
     }
 }

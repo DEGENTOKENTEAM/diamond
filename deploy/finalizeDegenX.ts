@@ -39,7 +39,7 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
       log(`✅ added`);
     } catch (e) {
       const { message } = e as Error;
-      if (message.includes(`ChainExisting(${chainId})`)) {
+      if (message.includes(`ChainExisting(${chainId})`) || message.includes('0x67ba2f65')) {
         relayerForChainExists = true;
         log(`🤔 Chain already configured. Trying update instead.`);
       } else {
@@ -53,7 +53,7 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
         log(`✅ updated`);
       } catch (e) {
         const { message } = e as Error;
-        if (message.includes(`RelayerExists("${relayerAddress}")`)) {
+        if (message.includes(`RelayerExists("${relayerAddress}")`) || message.includes('0x308e6242')) {
           log('✅ already added relayer to fee hub');
         } else {
           log(`❌ There was an unexpected error: ${message}`);

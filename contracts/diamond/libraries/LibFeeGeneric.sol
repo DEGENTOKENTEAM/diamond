@@ -7,13 +7,15 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRouter02 } from "./../interfaces/IRouter02.sol";
 import { INativeWrapper } from "./../interfaces/INativeWrapper.sol";
 import { IFeeGenericFacet } from "./../interfaces/IFeeGenericFacet.sol";
+import { IFeeManager } from "./../interfaces/IFeeManager.sol";
+import { IFeeStoreFacet } from "./../interfaces/IFeeStoreFacet.sol";
 
 import { LibFeeStore } from "./LibFeeStore.sol";
 import { LibFeeDistributor } from "./LibFeeDistributor.sol";
 import { LibFeeGenericStorage } from "./LibFeeGenericStorage.sol";
 
 import { ZeroValueNotAllowed, WrongChain } from "./../helpers/GenericErrors.sol";
-import { FeeConfigSyncHomeDTO, FeeConfigSyncHomeFees } from "./../helpers/Structs.sol";
+import { FeeConfigSyncHomeDTO, FeeConfigSyncHomeFees, FeeConfig } from "./../helpers/Structs.sol";
 
 /// @title Lib Fee Generic
 /// @author Daniel <danieldegendev@gmail.com>
@@ -115,5 +117,13 @@ library LibFeeGeneric {
         LibFeeStore.putFees(_feeId, _feeAmount);
 
         emit Collected(_feeId, _feeAmount);
+    }
+
+    function getFeeOnHomeChain(bytes32 _feeId) internal view returns (uint256 _fee) {
+        _fee = IFeeManager(address(this)).getFeeConfig(_feeId).fee;
+    }
+
+    function getFeeOnTargetChain(bytes32 _feeId) internal view returns (uint256 _fee) {
+        _fee = IFeeStoreFacet(address(this)).getFeeStoreConfig(_feeId).fee;
     }
 }
