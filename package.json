@@ -15,6 +15,7 @@
     "deploy:diamond:eth": "npx hardhat --network mainnet-eth deploy --tags ConfigureDegenX",
     "deploy:diamond:avax:finalize": "npx hardhat --network mainnet-avax deploy --tags FinalizeDegenX",
     "deploy:diamond:eth:finalize": "npx hardhat --network mainnet-eth deploy --tags FinalizeDegenX",
+    "deploy:diamond:all": "run-s deploy:diamond:avax deploy:diamond:eth deploy:diamond:avax:finalize deploy:diamond:eth:finalize",
     "deploy:atm:eth": "npx hardhat --network mainnet-eth deploy --tags DeployDegenATM",
     "deploy:launcher:eth": "npx hardhat --network mainnet-eth deploy --tags DeployLaunchProtocol",
     "coverage": "USE_REAL_ACCOUNTS=false npx hardhat coverage",

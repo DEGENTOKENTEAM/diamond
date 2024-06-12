@@ -10,13 +10,7 @@ import { HardhatUserConfig } from 'hardhat/config';
 import 'solidity-docgen';
 import './config';
 import './tasks';
-import {
-  NETWORK_HARDHAT,
-  NETWORK_LOCALFORK,
-  NETWORK_LOCALHOST,
-  NETWORK_MAINNET_AVAX,
-  NETWORK_MAINNET_ETH,
-} from './utils/networks';
+import { NETWORK_HARDHAT, NETWORK_MAINNET_AVAX, NETWORK_MAINNET_ETH } from './utils/networks';
 require('@openzeppelin/hardhat-upgrades');
 require('hardhat-contract-sizer');
 require('solidity-coverage');
@@ -139,7 +133,7 @@ const config: HardhatUserConfig = {
       live: false,
       saveDeployments: false,
       url: localforkUrlAVAX,
-      chainId: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].chainId,
+      // chainId: localforkRPCs[`${process.env.LOCALFORK_RPC_NETWORK}`].chainId,
       accounts,
     },
     hardhat: {

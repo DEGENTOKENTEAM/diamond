@@ -95,21 +95,24 @@ You can also set up your `.env` file with an environment variable
 ```
 ...
 USE_LOCALFORK_INSTEAD=true
+PRODUCTION=true 
+USE_DEF_DIAMOND=false 
+USE_REAL_ACCOUNTS=true 
 ...
 ```
 
 #### Deploy diamond on the home chain (Avalanche)
 
 ```bash
-USE_LOCALFORK_INSTEAD=true yarn deploy:diamond:avax
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true yarn deploy:diamond:avax
 ```
 
 #### Deploy diamond on the target chain (eg. Ethereum, BNB Smart Chain,...)
 
 ```bash
-USE_LOCALFORK_INSTEAD=true yarn deploy:diamond:eth
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true yarn deploy:diamond:eth
 # or
-USE_LOCALFORK_INSTEAD=true yarn deploy:diamond:bnb
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true yarn deploy:diamond:bnb
 ```
 
 #### Finalize diamond on the home chain
@@ -117,19 +120,19 @@ USE_LOCALFORK_INSTEAD=true yarn deploy:diamond:bnb
 This is necessary to apply configurations and contract information that are deployed on target chains
 
 ```bash
-USE_LOCALFORK_INSTEAD=true yarn deploy:diamond:avax:finalize
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true yarn deploy:diamond:avax:finalize
 ```
 
 #### Deploy the launch protocol on the target chain
 
 ```bash
-USE_LOCALFORK_INSTEAD=true npx hardhat deploy --network mainnet-eth --tags DeployLaunchProtocol
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true npx hardhat deploy --network mainnet-eth --tags DeployLaunchProtocol
 ```
 
 #### Deploy the liquidity gathering protocol (DegenATM) on the target chain
 
 ```bash
-USE_LOCALFORK_INSTEAD=true npx hardhat deploy --network mainnet-eth --tags DeployDegenATM
+PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUNTS=true npx hardhat deploy --network mainnet-eth --tags DeployDegenATM
 ```
 
 ## Development

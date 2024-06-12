@@ -3,7 +3,13 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { FeeCurrency, FeeType } from '../test/utils/enums';
 import { getContractAddress } from '../utils/addresses';
 import { diamondContractName } from '../utils/diamond';
-import { ERC20_DEVELOPER_FEE, ERC20_MARKETING_FEE, ERC20_PLATFORM_FEE, ERC20_REWARD_FEE } from '../utils/feeConfigs';
+import {
+  DEPLOYER_STAKEX_FEE,
+  ERC20_DEVELOPER_FEE,
+  ERC20_MARKETING_FEE,
+  ERC20_PLATFORM_FEE,
+  ERC20_REWARD_FEE,
+} from '../utils/feeConfigs';
 import { NETWORK_MAINNET_AVAX, NETWORK_MAINNET_ETH } from '../utils/networks';
 
 export type FeeDistributionReceiver = {
@@ -15,7 +21,7 @@ export type FeeDistributionReceiver = {
 
 export type FeeConfig = {
   id: string;
-  fee: number;
+  fee: bigint;
   receiver: string;
   currency: FeeCurrency;
   ftype: FeeType;
@@ -82,31 +88,38 @@ export default async function ({ diamond }: HardhatRuntimeEnvironment): Promise<
       feeConfigs: [
         {
           id: ERC20_MARKETING_FEE,
-          fee: 100,
+          fee: 100n,
           receiver: contracts.degenx.marketing?.address!,
           currency: 2,
           ftype: 1,
         },
         {
           id: ERC20_REWARD_FEE,
-          fee: 100,
+          fee: 100n,
           receiver: ZeroAddress,
           currency: 2,
           ftype: 1,
         },
         {
           id: ERC20_PLATFORM_FEE,
-          fee: 60,
+          fee: 60n,
           receiver: contracts.degenx.platform?.address!,
           currency: 2,
           ftype: 1,
         },
         {
           id: ERC20_DEVELOPER_FEE,
-          fee: 40,
+          fee: 40n,
           receiver: accounts.development.address,
           currency: 2,
           ftype: 1,
+        },
+        {
+          id: DEPLOYER_STAKEX_FEE,
+          fee: 150n * 10n ** 18n,
+          receiver: contracts.degenx.platform?.address!,
+          currency: FeeCurrency.Native,
+          ftype: FeeType.Default,
         },
       ],
       feeConfigToChain: [
