@@ -6,12 +6,12 @@ const verbose = false;
 
 export function getSelectors(contract: BaseContract | Contract): string[] {
   const selectors = contract.interface.fragments.reduce((acc: string[], val: Fragment) => {
-    if (val.type === 'error') {
-      console.log({
-        name: (val as unknown as ErrorFragment).name,
-        selector: (val as unknown as ErrorFragment).selector,
-      });
-    }
+    // if (val.type === 'error') {
+    //   console.log({
+    //     name: (val as unknown as ErrorFragment).name,
+    //     selector: (val as unknown as ErrorFragment).selector,
+    //   });
+    // }
 
     if (val.type === 'function') {
       acc.push((val as FunctionFragment).selector);

@@ -289,25 +289,25 @@ describe('DegenX (DGNX ERC20)', function () {
         feeDId = keccak256(toUtf8Bytes('feeD'));
         const configA: FeeConfigSyncDTOStruct = {
           id: feeAId,
-          fee: 1000,
+          fee: 100,
           target: ZeroAddress,
           action: FeeSyncAction.Add,
         };
         const configB: FeeConfigSyncDTOStruct = {
           id: feeBId,
-          fee: 2000,
+          fee: 200,
           target: ZeroAddress,
           action: FeeSyncAction.Add,
         };
         const configC: FeeConfigSyncDTOStruct = {
           id: feeCId,
-          fee: 2000,
+          fee: 200,
           target: ZeroAddress,
           action: FeeSyncAction.Add,
         };
         const configD: FeeConfigSyncDTOStruct = {
           id: feeDId,
-          fee: 4000,
+          fee: 400,
           target: ZeroAddress,
           action: FeeSyncAction.Add,
         };

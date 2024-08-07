@@ -118,7 +118,7 @@ describe('FeeGenericFacet', function () {
         const tx = await feeGeneric$.feeGenericDepositSingleFeeNative(ERC20_REWARD_FEE, ZeroAddress, 0, {
           value: depositAmount,
         });
-        await expect(tx).to.emit(feeGeneric$, 'Distributed').withArgs(liquidityBackingAddress, 69929n);
+        await expect(tx).to.emit(feeGeneric$, 'Distributed').withArgs(liquidityBackingAddress, 45888n);
         await expect(tx).to.changeEtherBalances(
           [wallet.address, nativeWrapperAddress],
           [parseEther('-1'), parseEther('1')]
@@ -126,7 +126,7 @@ describe('FeeGenericFacet', function () {
         await expect(tx).to.changeTokenBalance(
           await ethers.getContractAt('ERC20', btcbAddress),
           liquidityBackingVaultAddress,
-          69929n
+          45888n
         );
       });
 
@@ -136,7 +136,7 @@ describe('FeeGenericFacet', function () {
         const tx = await feeGeneric$.feeGenericDepositSingleFeeNative(ERC20_REWARD_FEE, user0.address, 100, {
           value: depositAmount,
         });
-        await expect(tx).to.emit(feeGeneric$, 'Distributed').withArgs(liquidityBackingAddress, 69230n);
+        await expect(tx).to.emit(feeGeneric$, 'Distributed').withArgs(liquidityBackingAddress, 45429n);
         await expect(tx).to.changeEtherBalances(
           [wallet.address, user0.address, nativeWrapperAddress],
           [parseEther('-1'), parseEther('0.01'), parseEther('0.99')]
@@ -144,8 +144,12 @@ describe('FeeGenericFacet', function () {
         await expect(tx).to.changeTokenBalance(
           await ethers.getContractAt('ERC20', btcbAddress),
           liquidityBackingVaultAddress,
-          69230n
+          45429n
         );
+      });
+
+      it('should be able to request a fee id on the home chain', async function () {
+        expect(await feeGeneric$.feeGenericGetFee(ERC20_REWARD_FEE)).to.eq(100n);
       });
     });
 
@@ -225,6 +229,10 @@ describe('FeeGenericFacet', function () {
           [user0.address, nativeWrapperAddress],
           [parseEther('0.01'), parseEther('0.99')]
         );
+      });
+
+      it('should be able to request a fee id on the home chain', async function () {
+        expect(await feeGeneric$.feeGenericGetFee(ERC20_PLATFORM_FEE)).to.eq(40n);
       });
     });
   });

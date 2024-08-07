@@ -148,12 +148,27 @@ describe('FeeStoreFacet', () => {
       await feeStoreFacet.syncFees([{ ...feeConfigSyncAddDTORaw, id: feeIdOther }]); // add other fee to add some else cases
       await expect(chargeFeeFacet.prepareToSendFeesTest()).to.be.revertedWithCustomError(feeStoreFacet, 'ZeroFees');
       const inputAmount = parseEther('1');
-      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(
-        feeConfigSyncAddDTORaw.id,
-        diamondAddress,
-        inputAmount
+
+      await expect(chargeFeeFacet.calcFeesRelative(feeConfigSyncAddDTORaw.id, 0)).to.be.revertedWithCustomError(
+        feeStoreFacet,
+        'ZeroValueNotAllowed'
       );
+
+      expect(await chargeFeeFacet.calcFeesRelative(keccak256(toUtf8Bytes('randomstring')), inputAmount)).to.deep.eq([
+        inputAmount,
+        0n,
+        0n,
+      ]);
+
+      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(feeConfigSyncAddDTORaw.id, inputAmount);
       await erc20.mint(await feeStoreFacet.getAddress(), expectedOutputAmount);
+      await expect(chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, 0)).to.be.revertedWithCustomError(
+        feeStoreFacet,
+        'ZeroValueNotAllowed'
+      );
+      await expect(
+        chargeFeeFacet.putFees(keccak256(toUtf8Bytes('randomstring')), expectedOutputAmount)
+      ).to.be.revertedWithCustomError(feeStoreFacet, 'NotAllowed');
       await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
       expect(await feeStoreFacet.getCollectedFeesTotal()).to.eq(expectedOutputAmount);
       expect(await feeStoreFacet.getCollectedFeesByConfigId(feeConfigSyncAddDTORaw.id)).to.eq(expectedOutputAmount);
@@ -162,19 +177,15 @@ describe('FeeStoreFacet', () => {
       await expect(tx).to.emit(feeStoreFacet, 'FeesPrepared');
       const log = txReceipt?.logs[0].data || '';
       expect(new AbiCoder().decode(['uint256', 'tuple(uint256,address,tuple(bytes32,uint256)[])'], log)).to.deep.eq([
-        parseEther('0.001'),
-        [parseEther('0.001'), ZeroAddress, [[feeConfigSyncAddDTORaw.id, parseEther('0.001')]]],
+        parseEther('0.01'),
+        [parseEther('0.01'), ZeroAddress, [[feeConfigSyncAddDTORaw.id, parseEther('0.01')]]],
       ]);
       expect(await feeStoreFacet.getCollectedFeesTotal()).to.eq(0);
     });
 
     it('should mark a fee config as deleted as long as there are fees not sent home yet', async () => {
       const inputAmount = parseEther('1');
-      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(
-        feeConfigSyncAddDTORaw.id,
-        diamondAddress,
-        inputAmount
-      );
+      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(feeConfigSyncAddDTORaw.id, inputAmount);
       await erc20.mint(diamondAddress, expectedOutputAmount);
       await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
 
@@ -194,11 +205,7 @@ describe('FeeStoreFacet', () => {
 
     it('should delete a fee config once the collected amount is prepared for transfer', async () => {
       const inputAmount = parseEther('1');
-      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(
-        feeConfigSyncAddDTORaw.id,
-        diamondAddress,
-        inputAmount
-      );
+      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(feeConfigSyncAddDTORaw.id, inputAmount);
       await erc20.mint(diamondAddress, expectedOutputAmount);
       await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
 
@@ -218,11 +225,7 @@ describe('FeeStoreFacet', () => {
         accessControlError(otherSigner.address, FEE_STORE_MANAGER_ROLE)
       );
       const inputAmount = parseEther('1');
-      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(
-        feeConfigSyncAddDTORaw.id,
-        diamondAddress,
-        inputAmount
-      );
+      const [, expectedOutputAmount] = await chargeFeeFacet.calcFeesRelative(feeConfigSyncAddDTORaw.id, inputAmount);
       await erc20.mint(diamondAddress, expectedOutputAmount);
       await chargeFeeFacet.putFees(feeConfigSyncAddDTORaw.id, expectedOutputAmount);
       await expect(feeStoreFacet.collectFeesFromFeeStore()).to.be.revertedWithCustomError(feeStoreFacet, 'AddressZero');
@@ -232,28 +235,8 @@ describe('FeeStoreFacet', () => {
       await expect(tx).to.changeTokenBalances(
         erc20,
         [diamondAddress, otherSigner.address],
-        [parseEther('-0.001'), parseEther('0.001')]
+        [parseEther('-0.01'), parseEther('0.01')]
       );
-    });
-
-    it('should check if absolute calculation is being done properly', async () => {
-      const inputAmount = parseEther('1');
-      expect(
-        await chargeFeeFacet.calcFeesAbsolute(feeConfigSyncAddDTORaw.id, await erc20.getAddress(), inputAmount)
-      ).to.deep.eq([parseEther('0.99'), parseEther('0.01'), 100n]);
-    });
-
-    it('should fail on certain conditions', async () => {
-      await expect(chargeFeeFacet.calcFeesAbsolute(ZeroHash, ZeroAddress, 0)).to.be.revertedWithCustomError(
-        chargeFeeFacet,
-        'ZeroValueNotAllowed'
-      );
-      expect(await chargeFeeFacet.calcFeesAbsolute(ZeroHash, ZeroAddress, 1)).to.deep.eq([1n, 0n, 0n]);
-      await expect(chargeFeeFacet.putFees(ZeroHash, 0)).to.be.revertedWithCustomError(
-        chargeFeeFacet,
-        'ZeroValueNotAllowed'
-      );
-      await expect(chargeFeeFacet.putFees(ZeroHash, 1)).to.be.revertedWithCustomError(chargeFeeFacet, 'NotAllowed');
     });
 
     it('should return all fee config ids', async () => {

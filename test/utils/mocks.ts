@@ -1,5 +1,4 @@
 import { AbiCoder, BigNumberish, Interface, ZeroAddress, ZeroHash, keccak256, parseEther, toUtf8Bytes } from 'ethers';
-import { ZERO_ADDR } from '../../providers/celer-contracts/test/lib/constants';
 import { FeeStoreFacet__factory } from '../../typechain-types';
 import { AddReceiverParamsStruct } from '../../typechain-types/contracts/diamond/facets/FeeDistributorFacet';
 import {
@@ -123,7 +122,7 @@ export const deployFeesMessageRelayer = (_target: string = chainTargetContract) 
 export const deployFeesConfirmMessageRelayer = (_target: string = chainTargetContract) =>
   new AbiCoder().encode(
     [celerRelayerDataTuple],
-    [{ what: RELAYER_ACTION_DEPLOY_FEES_CONFIRM, target: ZERO_ADDR, message: feeDeployerMessageAdd }]
+    [{ what: RELAYER_ACTION_DEPLOY_FEES_CONFIRM, target: ZeroAddress, message: feeDeployerMessageAdd }]
   );
 export const deployFeesMessageEmptyRelayer = (_target: string = chainTargetContract) =>
   new AbiCoder().encode(

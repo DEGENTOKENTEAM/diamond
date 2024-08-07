@@ -3,7 +3,6 @@ import { mine, setBalance, time } from '@nomicfoundation/hardhat-network-helpers
 import { expect } from 'chai';
 import { ZeroAddress, parseEther, toBeHex } from 'ethers';
 import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
-import { ZERO_ADDR } from '../providers/celer-contracts/test/lib/constants';
 import { DegenATM, ERC20Mock } from '../typechain-types';
 
 const deployFixture = async () => {
@@ -376,7 +375,7 @@ describe('Degen ATM', function () {
         false,
         false,
         false,
-        ZERO_ADDR,
+        ZeroAddress,
         0n,
         3000000000000000000n,
         0n,

@@ -140,7 +140,7 @@ PRODUCTION=true USE_DEF_DIAMOND=false USE_LOCALFORK_INSTEAD=true USE_REAL_ACCOUN
 ### Testing
 
 ```bash
-yarn test
+PRODUCTION=true USE_DEF_DIAMOND=false yarn test
 ```
 
 ### Testing with DEBUG namespace
@@ -148,7 +148,7 @@ yarn test
 This will give you more insights about the deployment process while executing a hardhat task that makes use of hardhat deploy scripts
 
 ```bash
-DEBUG=hardhat:wighawag:hardhat-deploy yarn test
+DEBUG=hardhat:wighawag:hardhat-deploy PRODUCTION=true USE_DEF_DIAMOND=false yarn test
 ```
 
 ### Test Coverage Report
@@ -156,15 +156,15 @@ DEBUG=hardhat:wighawag:hardhat-deploy yarn test
 Create a report for all files
 
 ```bash
-yarn coverage
+PRODUCTION=true USE_DEF_DIAMOND=false yarn coverage
 ```
 
 Create a report for a specific file
 
 ```bash
-yarn coverage --testfiles ./test/fee-distributor-facet.spec.ts
+PRODUCTION=true USE_DEF_DIAMOND=false yarn coverage --testfiles ./test/fee-distributor-facet.spec.ts
 # or
-yarn coverage --testfiles ./test/fee-store-facet.spec.ts
+PRODUCTION=true USE_DEF_DIAMOND=false yarn coverage --testfiles ./test/fee-store-facet.spec.ts
 ```
 
 After creating the report, you can look it up in detail in your browser by using following command and opening up the proposed host
