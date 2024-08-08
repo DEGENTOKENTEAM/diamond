@@ -5,6 +5,7 @@ import { FEE_DISTRIBUTOR_PUSH_ROLE } from '../test/utils/mocks';
 import { RelayerCeler } from '../typechain-types';
 import { getContractAddress } from '../utils/addresses';
 import { diamondContractName } from '../utils/diamond';
+import { cloneDeep, omit, pick } from 'lodash';
 
 const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRuntimeEnvironment) => {
   const { log } = deployments;
@@ -53,6 +54,15 @@ const main: DeployFunction = async ({ network, diamond, deployments }: HardhatRu
       log(`Add fee config (${feeConfig.id})`);
       if (existingFeeConfigIds.includes(feeConfig.id)) {
         log(`✅ already existing`);
+
+        log(`👀 Check if the fee has been changed (fee amount or receiver)`);
+        const feeConfigOrig = await feeManager.getFeeConfig(feeConfig.id);
+        const feeConfigUpdated = pick(cloneDeep(feeConfig), 'id', 'fee', 'receiver');
+        if (feeConfigOrig.fee !== feeConfigUpdated.fee || feeConfigOrig.receiver !== feeConfigUpdated.receiver) {
+          log(`⏳ Something has changed. Update fee config now`);
+          await (await feeManager.updateFeeConfig(feeConfigUpdated)).wait();
+          log(`✅ updated`);
+        } else log(`✅ nothing has changed`);
         continue;
       }
       await (await feeManager.addFeeConfig(feeConfig)).wait();
