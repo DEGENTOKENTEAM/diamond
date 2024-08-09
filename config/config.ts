@@ -6,9 +6,13 @@ import { diamondContractName } from '../utils/diamond';
 import {
   DEPLOYER_STAKEX_FEE,
   ERC20_DEVELOPER_FEE,
+  ERC20_DEVELOPER_FEE_V2,
   ERC20_MARKETING_FEE,
+  ERC20_MARKETING_FEE_V2,
   ERC20_PLATFORM_FEE,
+  ERC20_PLATFORM_FEE_V2,
   ERC20_REWARD_FEE,
+  ERC20_REWARD_FEE_V2,
 } from '../utils/feeConfigs';
 import { NETWORK_MAINNET_AVAX, NETWORK_MAINNET_ETH } from '../utils/networks';
 
@@ -87,29 +91,57 @@ export default async function ({ diamond }: HardhatRuntimeEnvironment): Promise<
       ],
       feeConfigs: [
         {
-          id: ERC20_MARKETING_FEE,
+          id: ERC20_MARKETING_FEE_V2,
           fee: 10n,
           receiver: contracts.degenx.marketing?.address!,
           currency: 2,
           ftype: 1,
         },
         {
-          id: ERC20_REWARD_FEE,
+          id: ERC20_REWARD_FEE_V2,
           fee: 10n,
           receiver: ZeroAddress,
           currency: 2,
           ftype: 1,
         },
         {
-          id: ERC20_PLATFORM_FEE,
+          id: ERC20_PLATFORM_FEE_V2,
           fee: 6n,
           receiver: contracts.degenx.platform?.address!,
           currency: 2,
           ftype: 1,
         },
         {
-          id: ERC20_DEVELOPER_FEE,
+          id: ERC20_DEVELOPER_FEE_V2,
           fee: 4n,
+          receiver: accounts.development.address,
+          currency: 2,
+          ftype: 1,
+        },
+        {
+          id: ERC20_MARKETING_FEE,
+          fee: 100n,
+          receiver: contracts.degenx.marketing?.address!,
+          currency: 2,
+          ftype: 1,
+        },
+        {
+          id: ERC20_REWARD_FEE,
+          fee: 100n,
+          receiver: ZeroAddress,
+          currency: 2,
+          ftype: 1,
+        },
+        {
+          id: ERC20_PLATFORM_FEE,
+          fee: 60n,
+          receiver: contracts.degenx.platform?.address!,
+          currency: 2,
+          ftype: 1,
+        },
+        {
+          id: ERC20_DEVELOPER_FEE,
+          fee: 40n,
           receiver: accounts.development.address,
           currency: 2,
           ftype: 1,
