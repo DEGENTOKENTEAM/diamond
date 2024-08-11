@@ -106,7 +106,7 @@ contract FeeStoreFacet is IFeeStoreFacet {
         }
     }
 
-    /// @notice Sends the current collected fees to the Manager in case no bridge provider is working and the job needs to be done manually
+    /// @notice Sends the current collected fees to the Operator in case no bridge provider is working and the job needs to be done manually
     function collectFeesFromFeeStore() external {
         LibAccessControlEnumerable.checkRole(Constants.FEE_STORE_MANAGER_ROLE);
         LibFeeStoreStorage.FeeStoreStorage storage s = _store();
@@ -151,35 +151,29 @@ contract FeeStoreFacet is IFeeStoreFacet {
 
     /// viewables
 
-    /// Gets a fee store config based on the fee id
-    /// @param _id fee config id
-    /// @return _feeStoreConfig FeeStoreConfig, see {contracts/diamond/helpers/Structs.sol#FeeStoreConfig}
+    /// @inheritdoc IFeeStoreFacet
     function getFeeStoreConfig(bytes32 _id) external view returns (FeeStoreConfig memory _feeStoreConfig) {
-        LibFeeStoreStorage.FeeStoreStorage storage s = _store();
-        _feeStoreConfig = s.feeConfigs[_id];
+        _feeStoreConfig = _store().feeConfigs[_id];
     }
 
     /// Gets the current collected total fees on this store
     /// @return _collectedFeesTotal amount of total fees collected
     /// @dev this is a cumulative number of all fees collected on this store until it get's send to the home chain
     function getCollectedFeesTotal() external view returns (uint256 _collectedFeesTotal) {
-        LibFeeStoreStorage.FeeStoreStorage storage s = _store();
-        _collectedFeesTotal = s.collectedFeesTotal;
+        _collectedFeesTotal = _store().collectedFeesTotal;
     }
 
     /// Gets the collected fees for a specific fee id
     /// @param _id fee config id
     /// @return _collectedFees amount of fees collected
     function getCollectedFeesByConfigId(bytes32 _id) external view returns (uint256 _collectedFees) {
-        LibFeeStoreStorage.FeeStoreStorage storage s = _store();
-        _collectedFees = s.collectedFees[_id];
+        _collectedFees = _store().collectedFees[_id];
     }
 
     /// Gets all fee config ids defined on this fee store
     /// @return _feeConfigIds array of fee ids
     function getFeeConfigIds() external view returns (bytes32[] memory _feeConfigIds) {
-        LibFeeStoreStorage.FeeStoreStorage storage s = _store();
-        _feeConfigIds = s.feeConfigIds;
+        _feeConfigIds = _store().feeConfigIds;
     }
 
     /// Gets the current operator

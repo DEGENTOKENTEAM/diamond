@@ -162,7 +162,7 @@ if the fee config is not configured anymore, the funds that are getting restored
 function collectFeesFromFeeStore() external
 ```
 
-Sends the current collected fees to the Manager in case no bridge provider is working and the job needs to be done manually
+Sends the current collected fees to the Operator in case no bridge provider is working and the job needs to be done manually
 
 ### setOperator
 

@@ -40,6 +40,30 @@
       "0x15ef807Ac071DE59288EDD9774a628CCC5042902": {
         "Name": "DiamondCutFacet",
         "Version": "1.0.0"
+      },
+      "0x19Ad3D08C2CFE34bca59Ad5399598f095B9F0c9c": {
+        "Name": "DiamondInit",
+        "Version": "1.0.0"
+      },
+      "0xB413342c3966768bF4cE3660772caa9578FeFE87": {
+        "Name": "RelayerCeler",
+        "Version": "1.0.0"
+      },
+      "0x570845BC208032d162C84d622b3880Dc87f45d30": {
+        "Name": "CelerFeeHubFacet",
+        "Version": "1.0.0"
+      },
+      "0x389C9190c4673Ca9eE3ae6Ed84F4807C677ae819": {
+        "Name": "FeeGenericFacet",
+        "Version": "1.0.0"
+      },
+      "0xC983e68e3651e3ef9583450158FcCb7111cAE6B9": {
+        "Name": "FeeManagerFacet",
+        "Version": "1.0.0"
+      },
+      "0x8fBd0709E7CCe1F5c083E3C9D62Ebaa0D13BD6b1": {
+        "Name": "FeeDistributorFacet",
+        "Version": "1.0.0"
       }
     }
   }

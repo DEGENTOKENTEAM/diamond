@@ -1,9 +1,10 @@
-import fs from 'fs';
-import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import { DeployResult } from 'hardhat-deploy/types';
-import { artifacts, ethers, network } from 'hardhat';
-import { addOrReplaceFacets } from '../scripts/helpers/diamond';
 import { Contract } from 'ethers';
+import fs from 'fs';
+import { artifacts, ethers, network } from 'hardhat';
+import { DeployResult } from 'hardhat-deploy/types';
+import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { addOrReplaceFacets } from '../scripts/helpers/diamond';
+import { diamondContractName, useDefDiamond } from '../utils/diamond';
 
 interface AddressesFile {
   [contract: string]: string;
@@ -37,19 +38,15 @@ interface LogFile {
   };
 }
 
-export const useDefDiamond = process.env.USE_DEF_DIAMOND?.toLowerCase() !== 'false';
-
 export const isProduction = process.env.PRODUCTION?.toLowerCase() === 'true';
-
-export const diamondContractName = useDefDiamond ? 'Diamond' : 'DegenX';
 
 export const addressesFile = isProduction
   ? `deployments/${network.name}.json`
   : `deployments/${network.name}.staging.json`;
 
 export const diamondFile = isProduction
-  ? `deployments/${network.name}.diamond${useDefDiamond ? '' : '.immutable'}.json`
-  : `deployments/${network.name}.diamond${useDefDiamond ? '' : '.immutable'}.staging.json`;
+  ? `deployments/${network.name}.diamond${useDefDiamond() ? '' : '.immutable'}.json`
+  : `deployments/${network.name}.diamond${useDefDiamond() ? '' : '.immutable'}.staging.json`;
 
 export const updateDeploymentLogs = async function (name: string, deployResult: DeployResult, isVerified?: boolean) {
   const path = (await artifacts.readArtifact(name)).sourceName;
@@ -75,6 +72,7 @@ export const updateDeploymentLogs = async function (name: string, deployResult: 
   });
 };
 
+// TODO check if this is used somewhere and remove it to use it from ./utils/addresses.ts
 export const updateAddress = function (name: string, address: string) {
   let data: AddressesFile = {};
   try {
@@ -98,13 +96,13 @@ export const updateDiamond = function (
     data = JSON.parse(fs.readFileSync(diamondFile, 'utf8')) as DiamondFile;
   } catch {}
 
-  if (!data[diamondContractName]) {
-    data[diamondContractName] = {
+  if (!data[diamondContractName()]) {
+    data[diamondContractName()] = {
       Facets: {},
     };
   }
 
-  data[diamondContractName].Facets[address] = {
+  data[diamondContractName()].Facets[address] = {
     Name: name,
     Version: options.version || '',
   };
@@ -164,7 +162,7 @@ export const deployFacet = async function (
   });
 
   const facet = await ethers.getContract(name);
-  const diamond = await ethers.getContract(diamondContractName);
+  const diamond = await ethers.getContract(diamondContractName());
 
   await addOrReplaceFacets([facet as Contract], await diamond.getAddress());
 
@@ -204,6 +202,7 @@ export const getConfig = (name: string) => {
   }
 };
 
+// TODO check if this is used somewhere and remove it to use it from ./utils/addresses.ts
 export const getContractAddress = (name: string, network?: string): string => {
   let data: AddressesFile = {};
   const file = isProduction ? `deployments/${network}.json` : `deployments/${network}.staging.json`;

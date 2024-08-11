@@ -28,15 +28,11 @@ contract DiamondInit {
         LibAccessControlEnumerable.setRoleAdmin(Constants.FEE_STORE_MANAGER_ROLE, Constants.ADMIN_ROLE);
         LibAccessControlEnumerable.setRoleAdmin(Constants.FEE_MANAGER_ROLE, Constants.ADMIN_ROLE);
         LibAccessControlEnumerable.setRoleAdmin(Constants.DEPLOYER_ROLE, Constants.ADMIN_ROLE);
-        LibAccessControlEnumerable.setRoleAdmin(Constants.MINTER_ROLE, Constants.ADMIN_ROLE);
-        LibAccessControlEnumerable.setRoleAdmin(Constants.BURNER_ROLE, Constants.ADMIN_ROLE);
         LibAccessControlEnumerable.grantRole(Constants.FEE_DISTRIBUTOR_PUSH_ROLE, msg.sender);
         LibAccessControlEnumerable.grantRole(Constants.FEE_DISTRIBUTOR_MANAGER, msg.sender);
         LibAccessControlEnumerable.grantRole(Constants.FEE_STORE_MANAGER_ROLE, msg.sender);
         LibAccessControlEnumerable.grantRole(Constants.FEE_MANAGER_ROLE, msg.sender);
         LibAccessControlEnumerable.grantRole(Constants.DEPLOYER_ROLE, msg.sender);
-        LibAccessControlEnumerable.grantRole(Constants.MINTER_ROLE, msg.sender);
-        LibAccessControlEnumerable.grantRole(Constants.BURNER_ROLE, msg.sender);
         LibAccessControlEnumerable.grantRole(Constants.ADMIN_ROLE, msg.sender);
     }
 }

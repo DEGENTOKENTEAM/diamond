@@ -56,6 +56,30 @@
       "0x547Bef01323896956Ea997AB42f4f77E296F879c": {
         "Name": "CelerFeeHubFacet",
         "Version": "1.0.0"
+      },
+      "0xf9325Dc599703F238521878d5BEA5936D7307fb8": {
+        "Name": "DiamondInit",
+        "Version": "1.0.0"
+      },
+      "0xf0fe92aD3c5877A07235c8cd7c49341c2190F566": {
+        "Name": "RelayerCeler",
+        "Version": "1.0.0"
+      },
+      "0x5b1e7Ec3d08c174B2B5Af001806F26Ca4b60D37C": {
+        "Name": "CelerFeeHubFacet",
+        "Version": "1.0.0"
+      },
+      "0xc90F8f6cfdC78df5B0e4025321581d380147DFd5": {
+        "Name": "FeeGenericFacet",
+        "Version": "1.0.0"
+      },
+      "0x610db37E6477E9bc75303cD2B7FA28048DA40684": {
+        "Name": "FeeStoreFacet",
+        "Version": "1.0.0"
+      },
+      "0x58BE7d743b6Fb4C4b0dFF0D0F934B464035fA503": {
+        "Name": "ERC20Facet",
+        "Version": "1.1.0"
       }
     }
   }

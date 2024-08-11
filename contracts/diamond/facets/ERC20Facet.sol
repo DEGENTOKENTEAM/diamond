@@ -312,7 +312,7 @@ contract ERC20Facet is SolidStateERC20, Pausable, IERC20Facet {
             uint256 _totalFee = 0;
             bytes32[] storage _fees = isBuy ? s.buyFee : s.sellFee;
             for (uint256 i = 0; i < _fees.length; ) {
-                (, uint256 _singleFee, ) = LibFeeStore.calcFeesRelative(_fees[i], address(this), _amount);
+                (, uint256 _singleFee, ) = LibFeeStore.calcFeesRelative(_fees[i], _amount);
                 LibFeeStore.putFees(_fees[i], _singleFee);
                 _totalFee += _singleFee;
                 unchecked {

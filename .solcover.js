@@ -1,5 +1,5 @@
 module.exports = {
-  modifierWhitelist: ['onlyOwner', 'onlyMessageBus', 'whenNotPaused', 'nonReentrant'],
+  modifierWhitelist: ['onlyOwner', 'onlyMessageBus', 'whenNotPaused', 'nonReentrant', 'onlyFeeDistributorManager'],
   skipFiles: [
     '__mocks__/CelerFeeHubFacetMock.sol',
     '__mocks__/DepositableMock.sol',

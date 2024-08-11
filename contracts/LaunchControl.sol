@@ -4,8 +4,9 @@ pragma solidity ^0.8.19;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { IRouter02 } from "./diamond/interfaces/IRouter02.sol";
 import { IERC20Facet } from "./diamond/interfaces/IERC20Facet.sol";
-import { IRouter02 } from "./interfaces/IRouter02.sol";
+import { INativeWrapper } from "./diamond/interfaces/INativeWrapper.sol";
 import { IFactory } from "./interfaces/IFactory.sol";
 
 /// @custom:version 1.0.0
@@ -20,8 +21,13 @@ contract LaunchControl is Ownable {
     address public lp;
     address public lpTokenReceiver;
     address public token; // diamond address is token address
+    address public nativeWrapper;
 
     /// admin
+    constructor(address _nativeWrapper) {
+        if (_nativeWrapper == address(0)) revert("invalid address");
+        nativeWrapper = _nativeWrapper;
+    }
 
     function recover(address _asset) external onlyOwner {
         uint256 _balanceA = address(this).balance;
@@ -37,11 +43,8 @@ contract LaunchControl is Ownable {
     function setToken(address _token) external onlyOwner {
         if (router == address(0)) revert("missing router");
         token = _token;
-        address _WETH = IRouter02(router).WETH();
-        lp = IFactory(IRouter02(router).factory()).getPair(token, _WETH);
-        if (lp == address(0)) {
-            lp = IFactory(IRouter02(router).factory()).createPair(token, IRouter02(router).WETH());
-        }
+        lp = IFactory(IRouter02(router).factory()).getPair(token, nativeWrapper);
+        if (lp == address(0)) lp = IFactory(IRouter02(router).factory()).createPair(token, nativeWrapper);
         IERC20Facet(token).addLP(lp);
     }
 
@@ -68,12 +71,18 @@ contract LaunchControl is Ownable {
         if (_balanceB == 0 || startPoolWithToken == 0 || startPoolWithToken > _balanceB) revert("not enough token");
 
         IERC20Facet(token).excludeAccountFromTax(address(this));
+        INativeWrapper(nativeWrapper).deposit{ value: startPoolWithNative }();
+
         IERC20(token).approve(router, startPoolWithToken);
-        (uint256 amountToken, uint256 amountETH, ) = IRouter02(router).addLiquidityETH{ value: startPoolWithNative }(
+        IERC20(nativeWrapper).approve(router, startPoolWithNative);
+
+        (uint256 amountToken, uint256 amountNative, ) = IRouter02(router).addLiquidity(
             token,
-            startPoolWithToken,
+            nativeWrapper,
             startPoolWithToken,
             startPoolWithNative,
+            0,
+            0,
             lpTokenReceiver,
             block.timestamp + 60
         );
@@ -81,7 +90,7 @@ contract LaunchControl is Ownable {
         IERC20Facet(token).includeAccountForTax(address(this));
 
         if (amountToken != startPoolWithToken) revert("wrong amount of token");
-        if (amountETH != startPoolWithNative) revert("wrong amount of native");
+        if (amountNative != startPoolWithNative) revert("wrong amount of native");
 
         liquidity = true;
     }

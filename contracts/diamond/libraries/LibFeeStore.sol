@@ -14,8 +14,7 @@ import { FeeStoreConfig, FeeConfigSyncHomeDTO, FeeConfigSyncHomeFees } from "./.
 /// @notice Functions to help with the fee store for other instances
 library LibFeeStore {
     using SafeERC20 for IERC20;
-    uint256 constant DENOMINATOR_RELATIVE = 10 ** 5; // bps denominator
-    uint256 constant DENOMINATOR_ABSOLUTE = 10 ** 4;
+    uint256 constant BPS_DENOMINATOR = 10 ** 4;
 
     error ZeroFees();
     error FeeNotExisting(bytes32 id);
@@ -132,56 +131,20 @@ library LibFeeStore {
 
     /// Calculates the relative fee based on the inserted amount
     /// @param _feeConfigId fee config id
-    /// @param _asset address of the token
     /// @param _amount amount that fees are based on
     /// @return _amountNet amount excluding fee
     /// @return _fee amount of fee
     /// @return _feePoints fee value that is applied
     function calcFeesRelative(
         bytes32 _feeConfigId,
-        address _asset,
         uint256 _amount
-    ) internal view returns (uint256 _amountNet, uint256 _fee, uint256 _feePoints) {
-        return calcFees(_feeConfigId, _asset, _amount, false);
-    }
-
-    /// Calculates the absolute fee based on the inserted amount
-    /// @param _feeConfigId fee config id
-    /// @param _asset address of the token
-    /// @param _amount amount that fees are based on
-    /// @return _amountNet amount excluding fee
-    /// @return _fee amount of fee
-    /// @return _feePoints fee value that is applied
-    function calcFeesAbsolute(
-        bytes32 _feeConfigId,
-        address _asset,
-        uint256 _amount
-    ) internal view returns (uint256 _amountNet, uint256 _fee, uint256 _feePoints) {
-        return calcFees(_feeConfigId, _asset, _amount, true);
-    }
-
-    /// Calculates the relative or absolute fees based on the inserted amount
-    /// @param _feeConfigId fee config id
-    /// @param _asset address of the token
-    /// @param _amount amount that fees are based on
-    /// @param _absolute whether a calculation is relative or absolute
-    /// @return _amountNet amount excluding fee
-    /// @return _fee amount of fee
-    /// @return _feePoints fee value that is applied
-    function calcFees(
-        bytes32 _feeConfigId,
-        address _asset,
-        uint256 _amount,
-        bool _absolute
     ) internal view returns (uint256 _amountNet, uint256 _fee, uint256 _feePoints) {
         if (_amount == 0) revert ZeroValueNotAllowed();
         LibFeeStoreStorage.FeeStoreStorage storage s = LibFeeStoreStorage.feeStoreStorage();
         FeeStoreConfig memory _config = s.feeConfigs[_feeConfigId];
         if (_config.id == bytes32("")) return (_amount, 0, 0);
         _feePoints = _config.fee;
-        _fee = _absolute
-            ? ((_feePoints * (10 ** IERC20Metadata(_asset).decimals())) / DENOMINATOR_ABSOLUTE)
-            : ((_amount * _feePoints) / DENOMINATOR_RELATIVE);
+        _fee = ((_amount * _feePoints) / BPS_DENOMINATOR);
         _amountNet = _amount - _fee;
     }
 

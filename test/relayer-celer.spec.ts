@@ -3,7 +3,6 @@ import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ZeroAddress, ZeroHash, parseEther } from 'ethers';
 import { deployments, ethers, getNamedAccounts, network } from 'hardhat';
-import { ZERO_ADDR } from '../providers/celer-contracts/test/lib/constants';
 import { deployFacet } from '../scripts/helpers/deploy-diamond';
 import { addFacets, addOrReplaceFacets } from '../scripts/helpers/diamond';
 import {
@@ -319,7 +318,7 @@ describe('RelayerCeler', () => {
       const signer = await ethers.getSigner(diamondAddress);
       await setBalance(diamondAddress, parseEther('100'));
 
-      const messageRelayer = sendFeesMessageRelayer(feeId, parseEther('1'), deployer, ZERO_ADDR);
+      const messageRelayer = sendFeesMessageRelayer(feeId, parseEther('1'), deployer, ZeroAddress);
       const message = sendFeesMessage(feeId, parseEther('1'), deployer);
       const fee = await relayerTarget.connect(signer).sendFeesFeeCalc(message);
 

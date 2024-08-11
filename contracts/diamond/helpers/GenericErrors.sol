@@ -12,3 +12,4 @@ error NoReetrancy();
 error WrongChain();
 error UnexpectedBalance();
 error FailToSendNative();
+error MissingData();
