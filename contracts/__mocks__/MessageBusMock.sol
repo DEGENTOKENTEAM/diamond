@@ -78,23 +78,23 @@ contract MessageBusMock is IMessageBus {
         uint256[] calldata _powers
     ) external {}
 
-    function calcFee(bytes calldata _message) public view returns (uint256) {
+    function calcFee(bytes calldata _message) public pure returns (uint256) {
         return 1 + _message.length * 1;
     }
 
-    function liquidityBridge() external view returns (address) {
+    function liquidityBridge() external pure returns (address) {
         return 0x0000000000000000000000000000000000000001;
     }
 
-    function pegBridge() external view returns (address) {
+    function pegBridge() external pure returns (address) {
         return 0x0000000000000000000000000000000000000001;
     }
 
-    function pegBridgeV2() external view returns (address) {
+    function pegBridgeV2() external pure returns (address) {
         return 0x0000000000000000000000000000000000000001;
     }
 
-    function pegVault() external view returns (address) {
+    function pegVault() external pure returns (address) {
         return 0x0000000000000000000000000000000000000001;
     }
 
