@@ -155,7 +155,19 @@ export default async function ({ diamond }: HardhatRuntimeEnvironment): Promise<
         },
       ],
       feeConfigToChain: [
-        { chainId: 1, ids: [ERC20_MARKETING_FEE, ERC20_REWARD_FEE, ERC20_PLATFORM_FEE, ERC20_DEVELOPER_FEE] },
+        {
+          chainId: 1,
+          ids: [
+            ERC20_MARKETING_FEE,
+            ERC20_REWARD_FEE,
+            ERC20_PLATFORM_FEE,
+            ERC20_DEVELOPER_FEE,
+            ERC20_MARKETING_FEE_V2,
+            ERC20_REWARD_FEE_V2,
+            ERC20_PLATFORM_FEE_V2,
+            ERC20_DEVELOPER_FEE_V2,
+          ],
+        },
       ],
       feeReceivers: [
         {
