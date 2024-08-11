@@ -98,7 +98,7 @@ contract MessageBusMock is IMessageBus {
         return 0x0000000000000000000000000000000000000001;
     }
 
-    function pegVaultV2() external view returns (address) {
+    function pegVaultV2() external pure returns (address) {
         return 0x0000000000000000000000000000000000000001;
     }
 
