@@ -12,4 +12,4 @@ export const ERC20_PLATFORM_FEE_V2 = keccak256(toUtf8Bytes('ERC20_PLATFORM_FEE_V
 export const ERC20_DEVELOPER_FEE_V2 = keccak256(toUtf8Bytes('ERC20_DEVELOPER_FEE_V2')); // 0xdec995fc864fc294e4f214d2bd6cd54c4cf505e5d8a060b785ea57726145d495
 
 // STAKEX deploter fee
-export const DEPLOYER_STAKEX_FEE = keccak256(toUtf8Bytes('DEPLOYER_STAKEX_FEE'));
+export const DEPLOYER_STAKEX_FEE = keccak256(toUtf8Bytes('DEPLOYER_STAKEX_FEE')); // 0xab8d8363edfd91d86b49dd0600c50594ab035a0f9bedec83c266a36254ec8684
